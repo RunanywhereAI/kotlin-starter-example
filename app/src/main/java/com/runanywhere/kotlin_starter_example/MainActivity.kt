@@ -15,8 +15,10 @@ import com.runanywhere.kotlin_starter_example.ui.screens.HomeScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.SpeechToTextScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.TextToSpeechScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.ToolCallingScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.VisionScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.VoicePipelineScreen
 import com.runanywhere.kotlin_starter_example.ui.theme.KotlinStarterTheme
+import android.util.Log
 import com.runanywhere.sdk.core.onnx.ONNX
 import com.runanywhere.sdk.foundation.bridge.extensions.CppBridgeModelPaths
 import com.runanywhere.sdk.llm.llamacpp.LlamaCPP
@@ -41,8 +43,14 @@ class MainActivity : ComponentActivity() {
         CppBridgeModelPaths.setBaseDirectory(runanywherePath)
         
         // Register backends FIRST - these must be registered before loading any models
-        // They provide the inference capabilities (TEXT_GENERATION, STT, TTS)
-        LlamaCPP.register(priority = 100)  // For LLM (GGUF models)
+        // They provide the inference capabilities (TEXT_GENERATION, STT, TTS, VLM)
+        try {
+            LlamaCPP.register(priority = 100)  // For LLM + VLM (GGUF models)
+        } catch (e: Throwable) {
+            // VLM native registration may fail if .so doesn't include nativeRegisterVlm;
+            // LLM text generation still works since it was registered before VLM in register()
+            Log.w("MainActivity", "LlamaCPP.register partial failure (VLM may be unavailable): ${e.message}")
+        }
         ONNX.register(priority = 100)      // For STT/TTS (ONNX models)
         
         // Register default models
@@ -71,7 +79,8 @@ fun RunAnywhereApp() {
                 onNavigateToSTT = { navController.navigate("stt") },
                 onNavigateToTTS = { navController.navigate("tts") },
                 onNavigateToVoicePipeline = { navController.navigate("voice_pipeline") },
-                onNavigateToToolCalling = { navController.navigate("tool_calling") }
+                onNavigateToToolCalling = { navController.navigate("tool_calling") },
+                onNavigateToVision = { navController.navigate("vision") }
             )
         }
         
@@ -105,6 +114,13 @@ fun RunAnywhereApp() {
         
         composable("tool_calling") {
             ToolCallingScreen(
+                onNavigateBack = { navController.popBackStack() },
+                modelService = modelService
+            )
+        }
+        
+        composable("vision") {
+            VisionScreen(
                 onNavigateBack = { navController.popBackStack() },
                 modelService = modelService
             )

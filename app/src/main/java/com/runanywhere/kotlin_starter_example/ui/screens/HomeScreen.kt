@@ -28,6 +28,7 @@ fun HomeScreen(
     onNavigateToTTS: () -> Unit,
     onNavigateToVoicePipeline: () -> Unit,
     onNavigateToToolCalling: () -> Unit,
+    onNavigateToVision: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -66,7 +67,7 @@ fun HomeScreen(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.height(700.dp)
+                modifier = Modifier.height(560.dp)
             ) {
                 item {
                     FeatureCard(
@@ -115,6 +116,16 @@ fun HomeScreen(
                         icon = Icons.Rounded.Build,
                         gradientColors = listOf(AccentOrange, Color(0xFFEA580C)),
                         onClick = onNavigateToToolCalling
+                    )
+                }
+                
+                item {
+                    FeatureCard(
+                        title = "Vision",
+                        subtitle = "Image Understanding",
+                        icon = Icons.Rounded.RemoveRedEye,
+                        gradientColors = listOf(AccentPink, Color(0xFFDB2777)),
+                        onClick = onNavigateToVision
                     )
                 }
             }
@@ -231,6 +242,12 @@ private fun ModelInfoSection() {
                 icon = Icons.Rounded.Memory,
                 title = "LLM",
                 value = "SmolLM2 360M"
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelInfoRow(
+                icon = Icons.Rounded.RemoveRedEye,
+                title = "VLM",
+                value = "SmolVLM 256M"
             )
             Spacer(modifier = Modifier.height(12.dp))
             ModelInfoRow(
