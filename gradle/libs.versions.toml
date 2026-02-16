@@ -12,10 +12,10 @@ composeBom = "2024.12.01"
 lifecycleViewmodelCompose = "2.8.7"
 navigationCompose = "2.8.5"
 coroutines = "1.9.0"
-runanywhere = "0.20.4"
+runanywhere = "0.20.6"
 
 [libraries]
-# RunAnywhere SDK (0.20.4 latest - includes VLM support, tool calling APIs, streaming fixes)
+# RunAnywhere SDK (0.20.5 - VLM support, tool calling APIs, streaming fixes)
 # VLM: RunAnywhere.loadVLMModel(), processImageStream(), describeImage()
 # Tool Calling: RunAnywhereToolCalling.registerTool(), generateWithTools()
 runanywhere-sdk = { group = "io.github.sanchitmonga22", name = "runanywhere-sdk-android", version.ref = "runanywhere" }

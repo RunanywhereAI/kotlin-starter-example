@@ -49,11 +49,6 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-        // The SDK and backend modules may ship the same native libs;
-        // pick the first one found to avoid merge conflicts.
-        jniLibs {
-            pickFirsts += "lib/**/lib*.so"
-        }
     }
 }
 
