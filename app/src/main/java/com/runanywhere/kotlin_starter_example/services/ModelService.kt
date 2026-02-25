@@ -74,10 +74,20 @@ class ModelService : ViewModel() {
         private set
     var isVLMLoaded by mutableStateOf(false)
         private set
-    
+
+    // LoRA base model state
+    var isLoraBaseDownloading by mutableStateOf(false)
+        private set
+    var loraBaseDownloadProgress by mutableStateOf(0f)
+        private set
+    var isLoraBaseLoading by mutableStateOf(false)
+        private set
+    var isLoraBaseLoaded by mutableStateOf(false)
+        private set
+
     var isVoiceAgentReady by mutableStateOf(false)
         private set
-    
+
     var errorMessage by mutableStateOf<String?>(null)
         private set
     
@@ -87,10 +97,17 @@ class ModelService : ViewModel() {
         const val STT_MODEL_ID = "sherpa-onnx-whisper-tiny.en"
         const val TTS_MODEL_ID = "vits-piper-en_US-lessac-medium"
         const val VLM_MODEL_ID = "smolvlm-256m-instruct"
-        
+
+        // LoRA-compatible base model
+        const val LORA_BASE_MODEL_ID = "lfm2-350m-q4_k_m"
+
+        // LoRA adapter URLs
+        const val TRANSLATOR_LORA_URL = "https://huggingface.co/Void2377/Qwen/resolve/main/lora/translator-lora-Q8_0.gguf"
+        const val TRANSLATOR_LORA_FILENAME = "translator-lora-Q8_0.gguf"
+
         /**
          * Register default models with the SDK.
-         * Includes LLM, STT, TTS, and VLM (multi-file model with mmproj).
+         * Includes LLM, STT, TTS, VLM, and LoRA-compatible base model.
          */
         fun registerDefaultModels() {
             // LLM Model - SmolLM2 360M (small, fast, good for demos)
@@ -101,6 +118,16 @@ class ModelService : ViewModel() {
                 framework = InferenceFramework.LLAMA_CPP,
                 modality = ModelCategory.LANGUAGE,
                 memoryRequirement = 400_000_000
+            )
+
+            // LoRA-compatible base model - LFM2 350M (supports LoRA adapters)
+            RunAnywhere.registerModel(
+                id = LORA_BASE_MODEL_ID,
+                name = "LFM2 350M Q4_K_M",
+                url = "https://huggingface.co/LiquidAI/LFM2-350M-GGUF/resolve/main/LFM2-350M-Q4_K_M.gguf",
+                framework = InferenceFramework.LLAMA_CPP,
+                modality = ModelCategory.LANGUAGE,
+                memoryRequirement = 250_000_000
             )
             
             // STT Model - Whisper Tiny English (fast transcription)
@@ -333,6 +360,55 @@ class ModelService : ViewModel() {
         }
     }
     
+    /**
+     * Download and load LoRA-compatible base model (LFM2 350M)
+     * This unloads any existing LLM first, then loads the LoRA-compatible base.
+     */
+    fun downloadAndLoadLoraBase() {
+        if (isLoraBaseDownloading || isLoraBaseLoading) return
+
+        viewModelScope.launch {
+            try {
+                errorMessage = null
+
+                // Unload existing LLM if loaded (can only have one at a time)
+                if (isLLMLoaded) {
+                    RunAnywhere.unloadLLMModel()
+                    isLLMLoaded = false
+                }
+
+                // Check if already downloaded
+                if (!isModelDownloaded(LORA_BASE_MODEL_ID)) {
+                    isLoraBaseDownloading = true
+                    loraBaseDownloadProgress = 0f
+
+                    RunAnywhere.downloadModel(LORA_BASE_MODEL_ID)
+                        .catch { e ->
+                            errorMessage = "LFM2 download failed: ${e.message}"
+                        }
+                        .collect { progress ->
+                            loraBaseDownloadProgress = progress.progress
+                        }
+
+                    isLoraBaseDownloading = false
+                }
+
+                // Load the model
+                isLoraBaseLoading = true
+                RunAnywhere.loadLLMModel(LORA_BASE_MODEL_ID)
+                isLoraBaseLoaded = true
+                isLLMLoaded = true
+                isLoraBaseLoading = false
+
+                refreshModelState()
+            } catch (e: Exception) {
+                errorMessage = "LFM2 load failed: ${e.message}"
+                isLoraBaseDownloading = false
+                isLoraBaseLoading = false
+            }
+        }
+    }
+
     /**
      * Download and load all models for voice agent
      */

@@ -13,8 +13,10 @@ import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.screens.ChatScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.HomeScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.SpeechToTextScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.SplashScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.TextToSpeechScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.ToolCallingScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.LoraScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.VisionScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.VoicePipelineScreen
 import com.runanywhere.kotlin_starter_example.ui.theme.KotlinStarterTheme
@@ -71,8 +73,18 @@ fun RunAnywhereApp() {
     
     NavHost(
         navController = navController,
-        startDestination = "home"
+        startDestination = "splash"
     ) {
+        composable("splash") {
+            SplashScreen(
+                onSplashComplete = {
+                    navController.navigate("home") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable("home") {
             HomeScreen(
                 onNavigateToChat = { navController.navigate("chat") },
@@ -80,7 +92,8 @@ fun RunAnywhereApp() {
                 onNavigateToTTS = { navController.navigate("tts") },
                 onNavigateToVoicePipeline = { navController.navigate("voice_pipeline") },
                 onNavigateToToolCalling = { navController.navigate("tool_calling") },
-                onNavigateToVision = { navController.navigate("vision") }
+                onNavigateToVision = { navController.navigate("vision") },
+                onNavigateToLora = { navController.navigate("lora") }
             )
         }
         
@@ -121,6 +134,13 @@ fun RunAnywhereApp() {
         
         composable("vision") {
             VisionScreen(
+                onNavigateBack = { navController.popBackStack() },
+                modelService = modelService
+            )
+        }
+
+        composable("lora") {
+            LoraScreen(
                 onNavigateBack = { navController.popBackStack() },
                 modelService = modelService
             )

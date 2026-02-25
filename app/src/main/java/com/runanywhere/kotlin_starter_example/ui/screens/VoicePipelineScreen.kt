@@ -9,58 +9,78 @@ import android.media.AudioTrack
 import android.media.MediaRecorder
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import com.runanywhere.kotlin_starter_example.ui.icons.TablerIcons
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
+import com.runanywhere.kotlin_starter_example.ui.components.AppButton
+import com.runanywhere.kotlin_starter_example.ui.components.AppCard
+import com.runanywhere.kotlin_starter_example.ui.components.AppScaffold
+import com.runanywhere.kotlin_starter_example.ui.components.EmptyChat
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
-import com.runanywhere.kotlin_starter_example.ui.theme.*
+import com.runanywhere.kotlin_starter_example.ui.theme.AppTheme
 import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.extensions.VoiceAgent.VoiceSessionConfig
 import com.runanywhere.sdk.public.extensions.VoiceAgent.VoiceSessionEvent
 import com.runanywhere.sdk.public.extensions.streamVoiceSession
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.*
-
-/**
- * Voice Pipeline Screen - Full STT → LLM → TTS with automatic silence detection
- * 
- * This screen demonstrates the simplest way to use RunAnywhere's voice pipeline.
- * All the business logic (silence detection, STT→LLM→TTS orchestration) is handled
- * by the SDK's streamVoiceSession API.
- * 
- * The app only needs to:
- * 1. Capture audio and provide it as a Flow<ByteArray>
- * 2. Collect VoiceSessionEvent to update UI
- * 3. Play audio when TurnCompleted event is received
- */
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class VoiceSessionState {
-    IDLE,
-    LISTENING,
-    SPEECH_DETECTED,
-    PROCESSING,
-    SPEAKING
+    IDLE, LISTENING, SPEECH_DETECTED, PROCESSING, SPEAKING
 }
 
 data class VoiceMessage(
@@ -69,29 +89,23 @@ data class VoiceMessage(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-/**
- * Simple audio capture that emits chunks as a Flow.
- * This is all the app needs to provide - the SDK handles everything else.
- */
 private class AudioCaptureService {
     private var audioRecord: AudioRecord? = null
-    
+
     @Volatile
     private var isCapturing = false
-    
+
     companion object {
         const val SAMPLE_RATE = 16000
-        const val CHUNK_SIZE_MS = 100 // Emit chunks every 100ms
+        const val CHUNK_SIZE_MS = 100
     }
-    
+
     fun startCapture(): Flow<ByteArray> = callbackFlow {
         val bufferSize = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
+            SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
         )
         val chunkSize = (SAMPLE_RATE * 2 * CHUNK_SIZE_MS) / 1000
-        
+
         try {
             audioRecord = AudioRecord(
                 MediaRecorder.AudioSource.MIC,
@@ -100,15 +114,15 @@ private class AudioCaptureService {
                 AudioFormat.ENCODING_PCM_16BIT,
                 maxOf(bufferSize, chunkSize * 2)
             )
-            
+
             if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
                 close(IllegalStateException("AudioRecord initialization failed"))
                 return@callbackFlow
             }
-            
+
             audioRecord?.startRecording()
             isCapturing = true
-            
+
             val readJob = launch(Dispatchers.IO) {
                 val buffer = ByteArray(chunkSize)
                 while (isActive && isCapturing) {
@@ -118,7 +132,7 @@ private class AudioCaptureService {
                     }
                 }
             }
-            
+
             awaitClose {
                 readJob.cancel()
                 stopCapture()
@@ -128,7 +142,7 @@ private class AudioCaptureService {
             close(e)
         }
     }
-    
+
     fun stopCapture() {
         isCapturing = false
         try {
@@ -139,23 +153,20 @@ private class AudioCaptureService {
     }
 }
 
-/**
- * Play WAV audio using AudioTrack
- */
 private suspend fun playWavAudio(wavData: ByteArray) = withContext(Dispatchers.IO) {
     if (wavData.size < 44) return@withContext
-    
-    val headerSize = if (wavData.size > 44 && 
-        wavData[0] == 'R'.code.toByte() && 
+
+    val headerSize = if (wavData.size > 44 &&
+        wavData[0] == 'R'.code.toByte() &&
         wavData[1] == 'I'.code.toByte()) 44 else 0
-    
+
     val pcmData = wavData.copyOfRange(headerSize, wavData.size)
     val sampleRate = 22050
-    
+
     val bufferSize = AudioTrack.getMinBufferSize(
         sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT
     )
-    
+
     val audioTrack = AudioTrack.Builder()
         .setAudioAttributes(
             AudioAttributes.Builder()
@@ -173,148 +184,112 @@ private suspend fun playWavAudio(wavData: ByteArray) = withContext(Dispatchers.I
         .setBufferSizeInBytes(maxOf(bufferSize, pcmData.size))
         .setTransferMode(AudioTrack.MODE_STATIC)
         .build()
-    
+
     audioTrack.write(pcmData, 0, pcmData.size)
     audioTrack.play()
-    
+
     val durationMs = (pcmData.size.toLong() * 1000) / (sampleRate * 2)
     delay(durationMs + 100)
-    
+
     audioTrack.stop()
     audioTrack.release()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoicePipelineScreen(
     onNavigateBack: () -> Unit,
     modelService: ModelService = viewModel(),
     modifier: Modifier = Modifier
 ) {
+    val colors = AppTheme.colors
     var sessionState by remember { mutableStateOf(VoiceSessionState.IDLE) }
     var messages by remember { mutableStateOf(listOf<VoiceMessage>()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var hasPermission by remember { mutableStateOf(false) }
     var audioLevel by remember { mutableFloatStateOf(0f) }
-    
+
     val audioCaptureService = remember { AudioCaptureService() }
-    
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    
-    // Voice session job
+
     var sessionJob by remember { mutableStateOf<Job?>(null) }
-    
-    // Check permission
+
     LaunchedEffect(Unit) {
         hasPermission = ContextCompat.checkSelfPermission(
             context, Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
     }
-    
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasPermission = isGranted
         if (!isGranted) errorMessage = "Microphone permission is required"
     }
-    
-    /**
-     * Start voice session using the SDK's streamVoiceSession API.
-     * 
-     * This is the key integration point - the SDK handles all the business logic:
-     * - Silence detection
-     * - STT → LLM → TTS orchestration
-     * - Continuous conversation mode
-     */
+
     fun startSession() {
         sessionState = VoiceSessionState.LISTENING
         errorMessage = null
         messages = messages + VoiceMessage("Listening... speak and pause to send", "status")
         scope.launch { listState.animateScrollToItem(messages.size) }
-        
-        // Get audio capture flow
+
         val audioFlow = audioCaptureService.startCapture()
-        
-        // Configure voice session
+
         val config = VoiceSessionConfig(
-            silenceDuration = 1.5,      // 1.5 seconds of silence triggers processing
-            speechThreshold = 0.1f,      // Audio level threshold for speech detection
-            autoPlayTTS = false,         // We'll handle playback ourselves
-            continuousMode = true        // Auto-resume listening after each turn
+            silenceDuration = 1.5,
+            speechThreshold = 0.1f,
+            autoPlayTTS = false,
+            continuousMode = true
         )
-        
-        // Start the SDK voice session - all business logic is handled by the SDK
+
         sessionJob = scope.launch {
             try {
                 RunAnywhere.streamVoiceSession(audioFlow, config).collect { event ->
                     when (event) {
-                        is VoiceSessionEvent.Started -> {
-                            sessionState = VoiceSessionState.LISTENING
-                        }
-                        
-                        is VoiceSessionEvent.Listening -> {
-                            audioLevel = event.audioLevel
-                        }
-                        
-                        is VoiceSessionEvent.SpeechStarted -> {
-                            sessionState = VoiceSessionState.SPEECH_DETECTED
-                        }
-                        
+                        is VoiceSessionEvent.Started -> sessionState = VoiceSessionState.LISTENING
+                        is VoiceSessionEvent.Listening -> audioLevel = event.audioLevel
+                        is VoiceSessionEvent.SpeechStarted -> sessionState = VoiceSessionState.SPEECH_DETECTED
                         is VoiceSessionEvent.Processing -> {
                             sessionState = VoiceSessionState.PROCESSING
                             audioLevel = 0f
                         }
-                        
                         is VoiceSessionEvent.Transcribed -> {
                             messages = messages + VoiceMessage(event.text, "user")
                             listState.animateScrollToItem(messages.size)
                         }
-                        
                         is VoiceSessionEvent.Responded -> {
                             messages = messages + VoiceMessage(event.text, "ai")
                             listState.animateScrollToItem(messages.size)
                         }
-                        
-                        is VoiceSessionEvent.Speaking -> {
-                            sessionState = VoiceSessionState.SPEAKING
-                        }
-                        
+                        is VoiceSessionEvent.Speaking -> sessionState = VoiceSessionState.SPEAKING
                         is VoiceSessionEvent.TurnCompleted -> {
-                            // Play the synthesized audio
                             event.audio?.let { audio ->
                                 sessionState = VoiceSessionState.SPEAKING
                                 playWavAudio(audio)
                             }
-                            // Resume listening state
                             sessionState = VoiceSessionState.LISTENING
                             audioLevel = 0f
                         }
-                        
                         is VoiceSessionEvent.Stopped -> {
                             sessionState = VoiceSessionState.IDLE
                             audioLevel = 0f
                         }
-                        
                         is VoiceSessionEvent.Error -> {
                             errorMessage = event.message
                             sessionState = VoiceSessionState.IDLE
                         }
                     }
                 }
-            } catch (e: CancellationException) {
-                // Expected when stopping
+            } catch (_: CancellationException) {
             } catch (e: Exception) {
                 errorMessage = "Session error: ${e.message}"
                 sessionState = VoiceSessionState.IDLE
             }
         }
     }
-    
-    /**
-     * Stop voice session
-     */
+
     fun stopSession() {
         sessionJob?.cancel()
         sessionJob = null
@@ -322,76 +297,40 @@ fun VoicePipelineScreen(
         sessionState = VoiceSessionState.IDLE
         audioLevel = 0f
     }
-    
-    // Cleanup on dispose
+
     DisposableEffect(Unit) {
         onDispose {
             sessionJob?.cancel()
             audioCaptureService.stopCapture()
         }
     }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Voice Pipeline") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryDark)
-            )
-        },
-        containerColor = PrimaryDark
-    ) { padding ->
-        Column(modifier = modifier.fillMaxSize().padding(padding)) {
-            val allModelsLoaded = modelService.isLLMLoaded && 
-                                 modelService.isSTTLoaded && 
-                                 modelService.isTTSLoaded
-            
-            // Model loader section
-            if (!allModelsLoaded) {
-                ModelLoaderSection(modelService)
-            }
-            
-            // Permission check
-            if (!hasPermission && allModelsLoaded) {
-                PermissionCard { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }
-            }
-            
-            // Main content
+
+    val allModelsLoaded = modelService.isLLMLoaded &&
+            modelService.isSTTLoaded &&
+            modelService.isTTSLoaded
+
+    AppScaffold(
+        title = "Voice Pipeline",
+        subtitle = "STT + LLM + TTS",
+        onBack = onNavigateBack,
+        bottomBar = {
             if (allModelsLoaded && hasPermission) {
-                // Messages list
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp)
-                ) {
-                    if (messages.isEmpty()) {
-                        item { EmptyStateMessage() }
-                    }
-                    items(messages) { message -> VoiceMessageBubble(message) }
-                }
-                
-                // Control section
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(SurfaceCard.copy(alpha = 0.8f))
-                        .padding(24.dp),
+                        .background(colors.surface)
+                        .padding(vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Audio level indicator (when listening)
+                    // Audio level indicator
                     if (sessionState == VoiceSessionState.LISTENING || sessionState == VoiceSessionState.SPEECH_DETECTED) {
-                        AudioLevelIndicator(audioLevel, sessionState == VoiceSessionState.SPEECH_DETECTED)
-                        Spacer(modifier = Modifier.height(16.dp))
+                        VoiceAudioLevelIndicator(audioLevel, sessionState == VoiceSessionState.SPEECH_DETECTED)
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
-                    
-                    StatusIndicator(sessionState)
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
+
+                    VoiceStatusIndicator(sessionState)
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     VoiceButton(
                         sessionState = sessionState,
                         onClick = {
@@ -401,30 +340,94 @@ fun VoicePipelineScreen(
                             }
                         }
                     )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = getStatusText(sessionState),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = getStatusColor(sessionState)
+                        text = getVoiceStatusText(sessionState),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = getVoiceStatusColor(sessionState)
                     )
                 }
             }
-            
-            // Error message
-            errorMessage?.let { ErrorCard(it) }
+        }
+    ) {
+        // Model loader section
+        if (!allModelsLoaded) {
+            VoiceModelLoaderSection(modelService)
+        }
+
+        // Permission check
+        if (!hasPermission && allModelsLoaded) {
+            AppCard(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Microphone permission required",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    AppButton(onClick = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) }) {
+                        Text("Grant Permission")
+                    }
+                }
+            }
+        }
+
+        // Messages
+        if (allModelsLoaded && hasPermission) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                if (messages.isEmpty()) {
+                    item {
+                        EmptyChat(
+                            icon = {
+                                Icon(
+                                    TablerIcons.Sparkles,
+                                    null,
+                                    tint = colors.tintGreen,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            },
+                            title = "Voice Pipeline Ready",
+                            subtitle = "Tap mic to start. Speak, then pause - it auto-detects silence."
+                        )
+                    }
+                }
+                items(messages) { message -> VoiceMessageBubble(message) }
+            }
+        }
+
+        // Error
+        errorMessage?.let { error ->
+            AppCard(modifier = Modifier.padding(16.dp)) {
+                Text(error, style = MaterialTheme.typography.bodyMedium, color = colors.error)
+            }
         }
     }
 }
 
 @Composable
-private fun ModelLoaderSection(modelService: ModelService) {
+private fun VoiceModelLoaderSection(modelService: ModelService) {
+    val colors = AppTheme.colors
+
     Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Voice Pipeline requires all models", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-        
+        Text("Voice Pipeline requires all models", style = MaterialTheme.typography.titleMedium, color = colors.textPrimary)
+
         ModelLoaderWidget(
             modelName = "SmolLM2 (LLM)",
             isDownloading = modelService.isLLMDownloading,
@@ -433,7 +436,7 @@ private fun ModelLoaderSection(modelService: ModelService) {
             downloadProgress = modelService.llmDownloadProgress,
             onLoadClick = { modelService.downloadAndLoadLLM() }
         )
-        
+
         ModelLoaderWidget(
             modelName = "Whisper (STT)",
             isDownloading = modelService.isSTTDownloading,
@@ -442,7 +445,7 @@ private fun ModelLoaderSection(modelService: ModelService) {
             downloadProgress = modelService.sttDownloadProgress,
             onLoadClick = { modelService.downloadAndLoadSTT() }
         )
-        
+
         ModelLoaderWidget(
             modelName = "Piper (TTS)",
             isDownloading = modelService.isTTSDownloading,
@@ -451,25 +454,31 @@ private fun ModelLoaderSection(modelService: ModelService) {
             downloadProgress = modelService.ttsDownloadProgress,
             onLoadClick = { modelService.downloadAndLoadTTS() }
         )
-        
-        Button(onClick = { modelService.downloadAndLoadAllModels() }, modifier = Modifier.fillMaxWidth()) {
+
+        AppButton(
+            onClick = { modelService.downloadAndLoadAllModels() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Load All Models")
         }
     }
 }
 
 @Composable
-private fun AudioLevelIndicator(audioLevel: Float, isSpeechDetected: Boolean) {
+private fun VoiceAudioLevelIndicator(audioLevel: Float, isSpeechDetected: Boolean) {
+    val colors = AppTheme.colors
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Recording badge
         Row(
             modifier = Modifier
-                .background(if (isSpeechDetected) AccentGreen.copy(alpha = 0.2f) else Color.Red.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                .background(
+                    if (isSpeechDetected) colors.success.copy(alpha = 0.12f) else colors.error.copy(alpha = 0.08f),
+                    RoundedCornerShape(4.dp)
+                )
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Pulsing dot
             val infiniteTransition = rememberInfiniteTransition(label = "pulse")
             val pulseAlpha by infiniteTransition.animateFloat(
                 initialValue = 1f, targetValue = 0.5f,
@@ -477,30 +486,31 @@ private fun AudioLevelIndicator(audioLevel: Float, isSpeechDetected: Boolean) {
                 label = "dot"
             )
             Box(
-                modifier = Modifier.size(8.dp).background(
-                    if (isSpeechDetected) AccentGreen.copy(alpha = pulseAlpha) else Color.Red.copy(alpha = pulseAlpha),
-                    CircleShape
-                )
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(
+                        if (isSpeechDetected) colors.success.copy(alpha = pulseAlpha) else colors.error.copy(alpha = pulseAlpha),
+                        CircleShape
+                    )
             )
             Text(
                 text = if (isSpeechDetected) "SPEECH DETECTED" else "LISTENING",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (isSpeechDetected) AccentGreen else Color.Red
+                color = if (isSpeechDetected) colors.success else colors.error
             )
         }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // Audio level bars
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             repeat(10) { index ->
                 val isActive = index < (audioLevel * 10).toInt()
                 Box(
                     modifier = Modifier
-                        .width(25.dp)
-                        .height(8.dp)
+                        .width(22.dp)
+                        .height(6.dp)
                         .background(
-                            if (isActive) AccentGreen else TextMuted.copy(alpha = 0.3f),
+                            if (isActive) colors.success else colors.textTertiary.copy(alpha = 0.3f),
                             RoundedCornerShape(2.dp)
                         )
                 )
@@ -510,106 +520,78 @@ private fun AudioLevelIndicator(audioLevel: Float, isSpeechDetected: Boolean) {
 }
 
 @Composable
-private fun PermissionCard(onRequestPermission: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Microphone permission required", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = onRequestPermission) { Text("Grant Permission") }
-        }
-    }
-}
-
-@Composable
-private fun ErrorCard(error: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-    ) {
-        Text(error, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-@Composable
-private fun StatusIndicator(state: VoiceSessionState) {
+private fun VoiceStatusIndicator(state: VoiceSessionState) {
+    val colors = AppTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        StatusDot("Listen", state == VoiceSessionState.LISTENING || state == VoiceSessionState.SPEECH_DETECTED, AccentCyan)
-        StatusDot("Process", state == VoiceSessionState.PROCESSING, AccentViolet)
-        StatusDot("Speak", state == VoiceSessionState.SPEAKING, AccentPink)
+        VoiceStatusDot("Listen", state == VoiceSessionState.LISTENING || state == VoiceSessionState.SPEECH_DETECTED, colors.tintCyan)
+        VoiceStatusDot("Process", state == VoiceSessionState.PROCESSING, colors.tintPurple)
+        VoiceStatusDot("Speak", state == VoiceSessionState.SPEAKING, colors.tintPink)
     }
 }
 
 @Composable
-private fun StatusDot(label: String, isActive: Boolean, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(60.dp)) {
-        Box(modifier = Modifier.size(12.dp).background(if (isActive) color else TextMuted.copy(alpha = 0.3f), CircleShape))
+private fun VoiceStatusDot(label: String, isActive: Boolean, color: Color) {
+    val colors = AppTheme.colors
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(if (isActive) color else colors.textTertiary.copy(alpha = 0.3f), CircleShape)
+        )
         Spacer(modifier = Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.bodySmall, color = if (isActive) color else TextMuted)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = if (isActive) color else colors.textSecondary)
     }
 }
 
 @Composable
 private fun VoiceButton(sessionState: VoiceSessionState, onClick: () -> Unit) {
+    val colors = AppTheme.colors
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (sessionState != VoiceSessionState.IDLE) 1.1f else 1f,
+        targetValue = if (sessionState != VoiceSessionState.IDLE) 1.08f else 1f,
         animationSpec = infiniteRepeatable(tween(1000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "scale"
     )
-    
-    Box(modifier = Modifier.size(120.dp), contentAlignment = Alignment.Center) {
+
+    Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
         if (sessionState != VoiceSessionState.IDLE) {
             Box(
-                modifier = Modifier.size(120.dp).scale(scale).background(
-                    brush = Brush.radialGradient(listOf(AccentGreen.copy(alpha = 0.3f), Color.Transparent)),
-                    shape = CircleShape
-                )
+                modifier = Modifier
+                    .size(100.dp)
+                    .scale(scale)
+                    .background(colors.tintGreen.copy(alpha = 0.15f), CircleShape)
             )
         }
-        
-        FloatingActionButton(
+
+        IconButton(
             onClick = onClick,
-            modifier = Modifier.size(80.dp),
-            containerColor = when (sessionState) {
-                VoiceSessionState.IDLE -> AccentGreen
-                VoiceSessionState.LISTENING, VoiceSessionState.SPEECH_DETECTED -> AccentViolet
-                else -> AccentCyan
-            },
-            contentColor = Color.White
+            modifier = Modifier.size(72.dp),
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = when (sessionState) {
+                    VoiceSessionState.IDLE -> colors.tintGreen
+                    VoiceSessionState.LISTENING, VoiceSessionState.SPEECH_DETECTED -> colors.tintPurple
+                    else -> colors.tintCyan
+                },
+                contentColor = Color.White
+            )
         ) {
             when (sessionState) {
-                VoiceSessionState.PROCESSING -> CircularProgressIndicator(Modifier.size(32.dp), Color.White)
-                VoiceSessionState.SPEAKING -> Icon(Icons.Rounded.VolumeUp, "Speaking", Modifier.size(32.dp))
-                VoiceSessionState.IDLE -> Icon(Icons.Rounded.Mic, "Start", Modifier.size(32.dp))
-                else -> Icon(Icons.Rounded.Stop, "Stop", Modifier.size(32.dp))
+                VoiceSessionState.PROCESSING -> CircularProgressIndicator(
+                    Modifier.size(28.dp), Color.White, strokeWidth = 2.5.dp
+                )
+                VoiceSessionState.SPEAKING -> Icon(TablerIcons.Volume, "Speaking", Modifier.size(28.dp))
+                VoiceSessionState.IDLE -> Icon(TablerIcons.Microphone, "Start", Modifier.size(28.dp))
+                else -> Icon(TablerIcons.PlayerStop, "Stop", Modifier.size(28.dp))
             }
         }
     }
 }
 
 @Composable
-private fun EmptyStateMessage() {
-    Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Rounded.AutoAwesome, null, tint = AccentGreen, modifier = Modifier.size(64.dp))
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Voice Pipeline Ready", style = MaterialTheme.typography.titleLarge, color = TextPrimary)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Tap mic to start. Speak, then pause - it auto-detects silence and processes.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted
-        )
-    }
-}
-
-@Composable
 private fun VoiceMessageBubble(message: VoiceMessage) {
+    val colors = AppTheme.colors
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = when (message.type) {
@@ -619,37 +601,58 @@ private fun VoiceMessageBubble(message: VoiceMessage) {
         }
     ) {
         if (message.type == "ai") {
-            Icon(Icons.Rounded.SmartToy, null, tint = AccentCyan, modifier = Modifier.size(32.dp).padding(top = 4.dp))
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(colors.tintCyan.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(TablerIcons.Robot, null, tint = colors.tintCyan, modifier = Modifier.size(14.dp))
+            }
             Spacer(modifier = Modifier.width(8.dp))
         }
-        
-        Card(
-            modifier = Modifier.widthIn(max = if (message.type == "status") 300.dp else 280.dp),
+
+        androidx.compose.material3.Card(
+            modifier = Modifier.widthIn(max = if (message.type == "status") 300.dp else 290.dp),
             shape = RoundedCornerShape(
-                topStart = if (message.type == "user") 16.dp else 4.dp,
-                topEnd = if (message.type == "user") 4.dp else 16.dp,
-                bottomStart = 16.dp, bottomEnd = 16.dp
+                topStart = if (message.type == "user") 14.dp else 4.dp,
+                topEnd = if (message.type == "user") 4.dp else 14.dp,
+                bottomStart = 14.dp, bottomEnd = 14.dp
             ),
-            colors = CardDefaults.cardColors(
+            colors = androidx.compose.material3.CardDefaults.cardColors(
                 containerColor = when (message.type) {
-                    "user" -> AccentCyan
-                    "status" -> SurfaceCard.copy(alpha = 0.5f)
-                    else -> SurfaceCard
+                    "user" -> colors.accent
+                    "status" -> colors.surfaceElevated.copy(alpha = 0.5f)
+                    else -> colors.surfaceElevated
                 }
-            )
+            ),
+            border = if (message.type != "user") androidx.compose.foundation.BorderStroke(0.5.dp, colors.border) else null,
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Text(message.text, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium,
-                color = if (message.type == "user") Color.White else TextPrimary)
+            Text(
+                message.text,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (message.type == "user") Color.White else colors.textPrimary
+            )
         }
-        
+
         if (message.type == "user") {
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Rounded.Person, null, tint = AccentViolet, modifier = Modifier.size(32.dp).padding(top = 4.dp))
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(colors.tintPurple.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(TablerIcons.User, null, tint = colors.tintPurple, modifier = Modifier.size(14.dp))
+            }
         }
     }
 }
 
-private fun getStatusText(state: VoiceSessionState) = when (state) {
+@Composable
+private fun getVoiceStatusText(state: VoiceSessionState) = when (state) {
     VoiceSessionState.IDLE -> "Tap to start"
     VoiceSessionState.LISTENING -> "Listening... pause to send"
     VoiceSessionState.SPEECH_DETECTED -> "Speaking detected..."
@@ -657,10 +660,14 @@ private fun getStatusText(state: VoiceSessionState) = when (state) {
     VoiceSessionState.SPEAKING -> "Speaking..."
 }
 
-private fun getStatusColor(state: VoiceSessionState) = when (state) {
-    VoiceSessionState.IDLE -> TextMuted
-    VoiceSessionState.LISTENING -> AccentCyan
-    VoiceSessionState.SPEECH_DETECTED -> AccentGreen
-    VoiceSessionState.PROCESSING -> AccentViolet
-    VoiceSessionState.SPEAKING -> AccentPink
+@Composable
+private fun getVoiceStatusColor(state: VoiceSessionState): Color {
+    val colors = AppTheme.colors
+    return when (state) {
+        VoiceSessionState.IDLE -> colors.textSecondary
+        VoiceSessionState.LISTENING -> colors.tintCyan
+        VoiceSessionState.SPEECH_DETECTED -> colors.success
+        VoiceSessionState.PROCESSING -> colors.tintPurple
+        VoiceSessionState.SPEAKING -> colors.tintPink
+    }
 }

@@ -1,13 +1,35 @@
 package com.runanywhere.kotlin_starter_example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import com.runanywhere.kotlin_starter_example.ui.icons.TablerIcons
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.runanywhere.kotlin_starter_example.ui.theme.AppTheme
 
 @Composable
 fun ModelLoaderWidget(
@@ -19,86 +41,132 @@ fun ModelLoaderWidget(
     onLoadClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
+    val colors = AppTheme.colors
+    val animatedProgress by animateFloatAsState(
+        targetValue = downloadProgress,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "progress"
+    )
+
+    AppCard(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = modelName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = when {
-                            isLoaded -> "Ready"
-                            isLoading -> "Loading..."
-                            isDownloading -> "Downloading ${(downloadProgress * 100).toInt()}%"
-                            else -> "Not loaded"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when {
-                            isLoaded -> MaterialTheme.colorScheme.primary
-                            isDownloading || isLoading -> MaterialTheme.colorScheme.secondary
-                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = modelName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    when {
+                        isLoaded -> {
+                            Icon(
+                                TablerIcons.CircleCheck,
+                                contentDescription = null,
+                                tint = colors.success,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Ready",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.success
+                            )
                         }
-                    )
-                }
-                
-                if (!isLoaded) {
-                    Button(
-                        onClick = onLoadClick,
-                        enabled = !isDownloading && !isLoading,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text(if (isDownloading || isLoading) "Loading..." else "Load")
+                        isLoading -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(12.dp),
+                                strokeWidth = 1.5.dp,
+                                color = colors.accent
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Loading model...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.accent
+                            )
+                        }
+                        isDownloading -> {
+                            Text(
+                                text = "Downloading ${(downloadProgress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.accent
+                            )
+                        }
+                        else -> {
+                            Text(
+                                text = "Not loaded",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary
+                            )
+                        }
                     }
                 }
             }
-            
-            // Progress bar for downloading
-            AnimatedVisibility(visible = isDownloading) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        progress = { downloadProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    )
+
+            if (!isLoaded) {
+                AppButton(
+                    onClick = onLoadClick,
+                    enabled = !isDownloading && !isLoading,
+                ) {
+                    if (isDownloading || isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = androidx.compose.ui.graphics.Color.White
+                        )
+                    } else {
+                        Icon(
+                            TablerIcons.Download,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text("Load", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
-            
-            // Loading indicator
-            AnimatedVisibility(visible = isLoading) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp),
-                        color = MaterialTheme.colorScheme.secondary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                }
+        }
+
+        // Progress bar
+        AnimatedVisibility(
+            visible = isDownloading,
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 }
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = colors.accent,
+                    trackColor = colors.border,
+                )
+            }
+        }
+
+        // Loading indeterminate
+        AnimatedVisibility(
+            visible = isLoading && !isDownloading,
+            enter = fadeIn() + slideInVertically { it / 2 },
+            exit = fadeOut() + slideOutVertically { it / 2 }
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
+                    color = colors.accent,
+                    trackColor = colors.border,
+                )
             }
         }
     }
