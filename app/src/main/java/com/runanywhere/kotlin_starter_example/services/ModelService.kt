@@ -93,41 +93,85 @@ class ModelService : ViewModel() {
     
     companion object {
         // Model IDs - using officially supported models
-        const val LLM_MODEL_ID = "smollm2-360m-instruct-q8_0"
+        const val LLM_MODEL_ID = "qwen2.5-0.5b-instruct-q6_k"
         const val STT_MODEL_ID = "sherpa-onnx-whisper-tiny.en"
         const val TTS_MODEL_ID = "vits-piper-en_US-lessac-medium"
         const val VLM_MODEL_ID = "smolvlm-256m-instruct"
 
-        // LoRA-compatible base model
-        const val LORA_BASE_MODEL_ID = "lfm2-350m-q4_k_m"
+        // LoRA-compatible base model (Qwen 2.5 supports LoRA adapters)
+        const val LORA_BASE_MODEL_ID = "qwen2.5-0.5b-instruct-q6_k"
 
-        // LoRA adapter URLs
-        const val TRANSLATOR_LORA_URL = "https://huggingface.co/Void2377/Qwen/resolve/main/lora/translator-lora-Q8_0.gguf"
-        const val TRANSLATOR_LORA_FILENAME = "translator-lora-Q8_0.gguf"
+        // LoRA adapter definitions
+        data class LoraAdapterDef(
+            val id: String,
+            val name: String,
+            val description: String,
+            val url: String,
+            val filename: String,
+            val examplePrompts: List<String>
+        )
+
+        val LORA_ADAPTERS = listOf(
+            LoraAdapterDef(
+                id = "code-assistant-lora",
+                name = "Code Assistant",
+                description = "Enhances code generation and programming assistance",
+                url = "https://huggingface.co/Void2377/Qwen/resolve/main/lora/code-assistant-Q8_0.gguf",
+                filename = "code-assistant-Q8_0.gguf",
+                examplePrompts = listOf(
+                    "Write a Python function to reverse a linked list",
+                    "Explain the difference between a stack and a queue with code examples",
+                )
+            ),
+            LoraAdapterDef(
+                id = "reasoning-logic-lora",
+                name = "Reasoning Logic",
+                description = "Improves logical reasoning and step-by-step problem solving",
+                url = "https://huggingface.co/Void2377/Qwen/resolve/main/lora/reasoning-logic-Q8_0.gguf",
+                filename = "reasoning-logic-Q8_0.gguf",
+                examplePrompts = listOf(
+                    "If all roses are flowers and some flowers fade quickly, can we conclude some roses fade quickly?",
+                    "A farmer has 17 sheep. All but 9 die. How many are left?",
+                )
+            ),
+            LoraAdapterDef(
+                id = "medical-qa-lora",
+                name = "Medical QA",
+                description = "Enhances medical question answering and health-related responses",
+                url = "https://huggingface.co/Void2377/Qwen/resolve/main/lora/medical-qa-Q8_0.gguf",
+                filename = "medical-qa-Q8_0.gguf",
+                examplePrompts = listOf(
+                    "What are the common symptoms of vitamin D deficiency?",
+                    "Explain the difference between Type 1 and Type 2 diabetes",
+                )
+            ),
+            LoraAdapterDef(
+                id = "creative-writing-lora",
+                name = "Creative Writing",
+                description = "Improves creative writing, storytelling, and literary style",
+                url = "https://huggingface.co/Void2377/Qwen/resolve/main/lora/creative-writing-Q8_0.gguf",
+                filename = "creative-writing-Q8_0.gguf",
+                examplePrompts = listOf(
+                    "Write a short story about a robot discovering emotions for the first time",
+                    "Describe a sunset over the ocean using vivid sensory language",
+                )
+            ),
+        )
 
         /**
          * Register default models with the SDK.
-         * Includes LLM, STT, TTS, VLM, and LoRA-compatible base model.
+         * Includes LLM, STT, TTS, VLM. Qwen 2.5 serves as both default LLM and LoRA base.
          */
         fun registerDefaultModels() {
-            // LLM Model - SmolLM2 360M (small, fast, good for demos)
+            // LLM Model - Qwen 2.5 0.5B Instruct (supports LoRA adapters)
             RunAnywhere.registerModel(
                 id = LLM_MODEL_ID,
-                name = "SmolLM2 360M Instruct Q8_0",
-                url = "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q8_0.gguf",
+                name = "Qwen 2.5 0.5B Instruct Q6_K",
+                url = "https://huggingface.co/Triangle104/Qwen2.5-0.5B-Instruct-Q6_K-GGUF/resolve/main/qwen2.5-0.5b-instruct-q6_k.gguf",
                 framework = InferenceFramework.LLAMA_CPP,
                 modality = ModelCategory.LANGUAGE,
-                memoryRequirement = 400_000_000
-            )
-
-            // LoRA-compatible base model - LFM2 350M (supports LoRA adapters)
-            RunAnywhere.registerModel(
-                id = LORA_BASE_MODEL_ID,
-                name = "LFM2 350M Q4_K_M",
-                url = "https://huggingface.co/LiquidAI/LFM2-350M-GGUF/resolve/main/LFM2-350M-Q4_K_M.gguf",
-                framework = InferenceFramework.LLAMA_CPP,
-                modality = ModelCategory.LANGUAGE,
-                memoryRequirement = 250_000_000
+                memoryRequirement = 600_000_000,
+                supportsLora = true
             )
             
             // STT Model - Whisper Tiny English (fast transcription)
@@ -361,7 +405,7 @@ class ModelService : ViewModel() {
     }
     
     /**
-     * Download and load LoRA-compatible base model (LFM2 350M)
+     * Download and load LoRA-compatible base model (Qwen 2.5 0.5B)
      * This unloads any existing LLM first, then loads the LoRA-compatible base.
      */
     fun downloadAndLoadLoraBase() {
@@ -384,7 +428,7 @@ class ModelService : ViewModel() {
 
                     RunAnywhere.downloadModel(LORA_BASE_MODEL_ID)
                         .catch { e ->
-                            errorMessage = "LFM2 download failed: ${e.message}"
+                            errorMessage = "Qwen download failed: ${e.message}"
                         }
                         .collect { progress ->
                             loraBaseDownloadProgress = progress.progress
@@ -402,7 +446,7 @@ class ModelService : ViewModel() {
 
                 refreshModelState()
             } catch (e: Exception) {
-                errorMessage = "LFM2 load failed: ${e.message}"
+                errorMessage = "Qwen load failed: ${e.message}"
                 isLoraBaseDownloading = false
                 isLoraBaseLoading = false
             }
