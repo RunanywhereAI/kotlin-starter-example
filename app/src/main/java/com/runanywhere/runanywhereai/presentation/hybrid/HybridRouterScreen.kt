@@ -1,4 +1,4 @@
-package com.runanywhere.runanywhereai.presentation.hybird
+package com.runanywhere.runanywhereai.presentation.hybrid
 
 import ai.runanywhere.proto.v1.ModelCategory
 import ai.runanywhere.proto.v1.ModelListRequest
@@ -55,6 +55,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Hybrid STT demo screen. Reached from the "More" hub
+ * ([com.runanywhere.runanywhereai.presentation.navigation.MoreHubScreen]) via
+ * the [com.runanywhere.runanywhereai.presentation.navigation.NavigationRoute.HYBRID_STT]
+ * route. Demonstrates the hybrid speech router: sherpa runs offline first and
+ * cascades to the Sarvam cloud backend when its confidence is below threshold.
+ *
+ * [paddingValues] is content padding from the host; the root Scaffold padding
+ * is already applied by the NavHost, so the route passes empty padding here.
+ */
 @Composable
 fun HybridRouterScreen(paddingValues: PaddingValues) {
     val context = LocalContext.current
