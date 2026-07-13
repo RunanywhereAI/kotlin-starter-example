@@ -2,8 +2,6 @@ package com.runanywhere.kotlin_starter_example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,6 +19,14 @@ import androidx.compose.ui.unit.dp
 import com.runanywhere.kotlin_starter_example.ui.components.FeatureCard
 import com.runanywhere.kotlin_starter_example.ui.theme.*
 
+private data class Feature(
+    val title: String,
+    val subtitle: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val gradientColors: List<Color>,
+    val onClick: () -> Unit,
+)
+
 @Composable
 fun HomeScreen(
     onNavigateToChat: () -> Unit,
@@ -29,6 +35,10 @@ fun HomeScreen(
     onNavigateToVoicePipeline: () -> Unit,
     onNavigateToToolCalling: () -> Unit,
     onNavigateToVision: () -> Unit,
+    onNavigateToVad: () -> Unit,
+    onNavigateToRag: () -> Unit,
+    onNavigateToEmbeddings: () -> Unit,
+    onNavigateToStructuredOutput: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -62,71 +72,38 @@ fun HomeScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // Feature grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.height(560.dp)
-            ) {
-                item {
-                    FeatureCard(
-                        title = "Chat",
-                        subtitle = "LLM Text Generation",
-                        icon = Icons.Rounded.Chat,
-                        gradientColors = listOf(AccentCyan, Color(0xFF0EA5E9)),
-                        onClick = onNavigateToChat
-                    )
-                }
-                
-                item {
-                    FeatureCard(
-                        title = "Speech",
-                        subtitle = "Speech to Text",
-                        icon = Icons.Rounded.Mic,
-                        gradientColors = listOf(AccentViolet, Color(0xFF7C3AED)),
-                        onClick = onNavigateToSTT
-                    )
-                }
-                
-                item {
-                    FeatureCard(
-                        title = "Voice",
-                        subtitle = "Text to Speech",
-                        icon = Icons.Rounded.VolumeUp,
-                        gradientColors = listOf(AccentPink, Color(0xFFDB2777)),
-                        onClick = onNavigateToTTS
-                    )
-                }
-                
-                item {
-                    FeatureCard(
-                        title = "Pipeline",
-                        subtitle = "Voice Agent",
-                        icon = Icons.Rounded.AutoAwesome,
-                        gradientColors = listOf(AccentGreen, Color(0xFF059669)),
-                        onClick = onNavigateToVoicePipeline
-                    )
-                }
-                
-                item {
-                    FeatureCard(
-                        title = "Tools",
-                        subtitle = "Function Calling",
-                        icon = Icons.Rounded.Build,
-                        gradientColors = listOf(AccentOrange, Color(0xFFEA580C)),
-                        onClick = onNavigateToToolCalling
-                    )
-                }
-                
-                item {
-                    FeatureCard(
-                        title = "Vision",
-                        subtitle = "Image Understanding",
-                        icon = Icons.Rounded.RemoveRedEye,
-                        gradientColors = listOf(AccentPink, Color(0xFFDB2777)),
-                        onClick = onNavigateToVision
-                    )
+            // Feature grid (data-driven, two columns, non-scrolling rows so it
+            // nests cleanly inside the page's vertical scroll)
+            val features = listOf(
+                Feature("Chat", "LLM Text Generation", Icons.Rounded.Chat, listOf(AccentCyan, Color(0xFF0EA5E9)), onNavigateToChat),
+                Feature("Speech", "Speech to Text", Icons.Rounded.Mic, listOf(AccentViolet, Color(0xFF7C3AED)), onNavigateToSTT),
+                Feature("Voice", "Text to Speech", Icons.Rounded.VolumeUp, listOf(AccentPink, Color(0xFFDB2777)), onNavigateToTTS),
+                Feature("Pipeline", "Voice Agent", Icons.Rounded.AutoAwesome, listOf(AccentGreen, Color(0xFF059669)), onNavigateToVoicePipeline),
+                Feature("Tools", "Function Calling", Icons.Rounded.Build, listOf(AccentOrange, Color(0xFFEA580C)), onNavigateToToolCalling),
+                Feature("Vision", "Image Understanding", Icons.Rounded.RemoveRedEye, listOf(AccentPink, Color(0xFFDB2777)), onNavigateToVision),
+                Feature("Voice Activity", "Speech Detection", Icons.Rounded.GraphicEq, listOf(AccentGreen, Color(0xFF0EA5E9)), onNavigateToVad),
+                Feature("Documents", "RAG Q&A", Icons.Rounded.LibraryBooks, listOf(AccentCyan, AccentViolet), onNavigateToRag),
+                Feature("Embeddings", "Semantic Vectors", Icons.Rounded.Hub, listOf(AccentViolet, Color(0xFF7C3AED)), onNavigateToEmbeddings),
+                Feature("Structured", "JSON Output", Icons.Rounded.DataObject, listOf(AccentOrange, AccentPink), onNavigateToStructuredOutput),
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                features.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        row.forEach { feature ->
+                            FeatureCard(
+                                title = feature.title,
+                                subtitle = feature.subtitle,
+                                icon = feature.icon,
+                                gradientColors = feature.gradientColors,
+                                onClick = feature.onClick,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (row.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
             
@@ -260,6 +237,18 @@ private fun ModelInfoSection() {
                 icon = Icons.Rounded.RecordVoiceOver,
                 title = "TTS",
                 value = "Piper Lessac"
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelInfoRow(
+                icon = Icons.Rounded.GraphicEq,
+                title = "VAD",
+                value = "Silero VAD"
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ModelInfoRow(
+                icon = Icons.Rounded.Hub,
+                title = "Embedding",
+                value = "MiniLM L6 v2"
             )
         }
     }

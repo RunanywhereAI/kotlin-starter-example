@@ -70,6 +70,26 @@ class ModelService : ViewModel() {
     var isVLMLoaded by mutableStateOf(false)
         private set
 
+    // VAD state
+    var isVADDownloading by mutableStateOf(false)
+        private set
+    var vadDownloadProgress by mutableStateOf(0f)
+        private set
+    var isVADLoading by mutableStateOf(false)
+        private set
+    var isVADLoaded by mutableStateOf(false)
+        private set
+
+    // Embedding state (also used as the retriever for RAG)
+    var isEmbeddingDownloading by mutableStateOf(false)
+        private set
+    var embeddingDownloadProgress by mutableStateOf(0f)
+        private set
+    var isEmbeddingLoading by mutableStateOf(false)
+        private set
+    var isEmbeddingLoaded by mutableStateOf(false)
+        private set
+
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
@@ -79,6 +99,8 @@ class ModelService : ViewModel() {
         const val STT_MODEL_ID = "sherpa-onnx-whisper-tiny.en"
         const val TTS_MODEL_ID = "vits-piper-en_US-lessac-medium"
         const val VLM_MODEL_ID = "smolvlm-256m-instruct"
+        const val VAD_MODEL_ID = "silero-vad"
+        const val EMBEDDING_MODEL_ID = "all-minilm-l6-v2"
 
         /**
          * Register default models with the SDK.
@@ -142,6 +164,40 @@ class ModelService : ViewModel() {
                 modality = ModelCategory.MODEL_CATEGORY_MULTIMODAL,
                 memoryRequirement = 365_000_000
             )
+
+            // VAD Model - Silero VAD (ONNX single-file, streaming voice-activity detection)
+            RunAnywhere.registerModel(
+                id = VAD_MODEL_ID,
+                name = "Silero VAD",
+                url = "https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx",
+                framework = InferenceFramework.INFERENCE_FRAMEWORK_ONNX,
+                modality = ModelCategory.MODEL_CATEGORY_VOICE_ACTIVITY_DETECTION,
+                memoryRequirement = 2_327_524
+            )
+
+            // Embedding Model - All MiniLM L6 v2 (ONNX multi-file: model + vocab).
+            // Powers the standalone Embeddings demo and acts as the retriever in RAG.
+            RunAnywhere.registerModel(
+                multiFile = listOf(
+                    ModelFileDescriptor(
+                        url = "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx",
+                        filename = "model.onnx",
+                        is_required = true,
+                        role = ModelFileRole.MODEL_FILE_ROLE_PRIMARY_MODEL,
+                    ),
+                    ModelFileDescriptor(
+                        url = "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/vocab.txt",
+                        filename = "vocab.txt",
+                        is_required = true,
+                        role = ModelFileRole.MODEL_FILE_ROLE_COMPANION,
+                    ),
+                ),
+                id = EMBEDDING_MODEL_ID,
+                name = "All MiniLM L6 v2 (Embedding)",
+                framework = InferenceFramework.INFERENCE_FRAMEWORK_ONNX,
+                modality = ModelCategory.MODEL_CATEGORY_EMBEDDING,
+                memoryRequirement = 25_500_000
+            )
         }
     }
 
@@ -166,6 +222,12 @@ class ModelService : ViewModel() {
         ).found
         isVLMLoaded = RunAnywhere.currentModel(
             CurrentModelRequest(category = ModelCategory.MODEL_CATEGORY_MULTIMODAL)
+        ).found
+        isVADLoaded = RunAnywhere.currentModel(
+            CurrentModelRequest(category = ModelCategory.MODEL_CATEGORY_VOICE_ACTIVITY_DETECTION)
+        ).found
+        isEmbeddingLoaded = RunAnywhere.currentModel(
+            CurrentModelRequest(category = ModelCategory.MODEL_CATEGORY_EMBEDDING)
         ).found
     }
 
@@ -363,6 +425,116 @@ class ModelService : ViewModel() {
                 isVLMLoading = false
             }
         }
+    }
+
+    /**
+     * Download and load VAD model (Silero VAD - streaming voice-activity detection)
+     */
+    fun downloadAndLoadVAD() {
+        if (isVADDownloading || isVADLoading) return
+
+        viewModelScope.launch {
+            try {
+                errorMessage = null
+
+                if (!isModelDownloaded(VAD_MODEL_ID)) {
+                    isVADDownloading = true
+                    vadDownloadProgress = 0f
+
+                    val model = RunAnywhere.getModel(ModelGetRequest(model_id = VAD_MODEL_ID)).model
+                        ?: error("VAD model is not registered")
+                    RunAnywhere.downloadModel(model) { progress ->
+                        vadDownloadProgress = progress.overall_progress
+                    }
+
+                    isVADDownloading = false
+                }
+
+                isVADLoading = true
+                val result = RunAnywhere.loadModel(
+                    RAModelLoadRequest(
+                        model_id = VAD_MODEL_ID,
+                        category = ModelCategory.MODEL_CATEGORY_VOICE_ACTIVITY_DETECTION,
+                        framework = InferenceFramework.INFERENCE_FRAMEWORK_ONNX,
+                    )
+                )
+                if (!result.success) {
+                    error(result.error_message.ifBlank { "VAD load failed" })
+                }
+                isVADLoading = false
+
+                refreshModelState()
+            } catch (e: Exception) {
+                errorMessage = "VAD load failed: ${e.message}"
+                isVADDownloading = false
+                isVADLoading = false
+            }
+        }
+    }
+
+    /**
+     * Download and load the embedding model (All MiniLM L6 v2).
+     * The embed API also lazy-loads on first call, but loading here surfaces a
+     * "Ready" state in the UI before the first embedding request.
+     */
+    fun downloadAndLoadEmbedding() {
+        if (isEmbeddingDownloading || isEmbeddingLoading) return
+
+        viewModelScope.launch {
+            try {
+                errorMessage = null
+
+                if (!isModelDownloaded(EMBEDDING_MODEL_ID)) {
+                    isEmbeddingDownloading = true
+                    embeddingDownloadProgress = 0f
+
+                    val model = RunAnywhere.getModel(ModelGetRequest(model_id = EMBEDDING_MODEL_ID)).model
+                        ?: error("Embedding model is not registered")
+                    RunAnywhere.downloadModel(model) { progress ->
+                        embeddingDownloadProgress = progress.overall_progress
+                    }
+
+                    isEmbeddingDownloading = false
+                }
+
+                isEmbeddingLoading = true
+                val result = RunAnywhere.loadModel(
+                    RAModelLoadRequest(
+                        model_id = EMBEDDING_MODEL_ID,
+                        category = ModelCategory.MODEL_CATEGORY_EMBEDDING,
+                        framework = InferenceFramework.INFERENCE_FRAMEWORK_ONNX,
+                    )
+                )
+                if (!result.success) {
+                    error(result.error_message.ifBlank { "Embedding load failed" })
+                }
+                isEmbeddingLoading = false
+
+                refreshModelState()
+            } catch (e: Exception) {
+                errorMessage = "Embedding load failed: ${e.message}"
+                isEmbeddingDownloading = false
+                isEmbeddingLoading = false
+            }
+        }
+    }
+
+    /**
+     * Ensure a registered model is downloaded to local storage without loading
+     * it into any component. Used by the RAG pipeline, which resolves its
+     * embedding + LLM artifacts from the registry by id.
+     *
+     * @return true when the model is available locally after the call.
+     */
+    suspend fun downloadModelIfNeeded(
+        modelId: String,
+        onProgress: (Float) -> Unit = {},
+    ): Boolean {
+        if (isModelDownloaded(modelId)) return true
+        val model = RunAnywhere.getModel(ModelGetRequest(model_id = modelId)).model
+            ?: return false
+        RunAnywhere.downloadModel(model) { progress -> onProgress(progress.overall_progress) }
+        return isModelDownloaded(modelId)
     }
 
     /**

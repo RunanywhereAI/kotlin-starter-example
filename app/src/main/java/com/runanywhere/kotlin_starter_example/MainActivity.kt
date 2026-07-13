@@ -12,10 +12,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.screens.ChatScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.EmbeddingsScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.HomeScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.RagScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.SpeechToTextScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.StructuredOutputScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.TextToSpeechScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.ToolCallingScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.VadScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.VisionScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.VoicePipelineScreen
 import com.runanywhere.kotlin_starter_example.ui.theme.KotlinStarterTheme
@@ -93,7 +97,11 @@ fun RunAnywhereApp() {
                 onNavigateToTTS = { navController.navigate("tts") },
                 onNavigateToVoicePipeline = { navController.navigate("voice_pipeline") },
                 onNavigateToToolCalling = { navController.navigate("tool_calling") },
-                onNavigateToVision = { navController.navigate("vision") }
+                onNavigateToVision = { navController.navigate("vision") },
+                onNavigateToVad = { navController.navigate("vad") },
+                onNavigateToRag = { navController.navigate("rag") },
+                onNavigateToEmbeddings = { navController.navigate("embeddings") },
+                onNavigateToStructuredOutput = { navController.navigate("structured_output") }
             )
         }
 
@@ -134,6 +142,34 @@ fun RunAnywhereApp() {
 
         composable("vision") {
             VisionScreen(
+                onNavigateBack = { navController.popBackStack() },
+                modelService = modelService
+            )
+        }
+
+        composable("vad") {
+            VadScreen(
+                onNavigateBack = { navController.popBackStack() },
+                modelService = modelService
+            )
+        }
+
+        composable("rag") {
+            RagScreen(
+                onNavigateBack = { navController.popBackStack() },
+                modelService = modelService
+            )
+        }
+
+        composable("embeddings") {
+            EmbeddingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                modelService = modelService
+            )
+        }
+
+        composable("structured_output") {
+            StructuredOutputScreen(
                 onNavigateBack = { navController.popBackStack() },
                 modelService = modelService
             )
