@@ -56,7 +56,8 @@ import com.runanywhere.kotlin_starter_example.ui.theme.PrimaryMid
 import com.runanywhere.kotlin_starter_example.ui.theme.SurfaceCard
 import com.runanywhere.kotlin_starter_example.ui.theme.TextMuted
 import com.runanywhere.kotlin_starter_example.ui.theme.TextPrimary
-import com.runanywhere.sdk.public.extensions.chat
+import com.runanywhere.sdk.public.RunAnywhere
+import com.runanywhere.sdk.public.extensions.generate
 import kotlinx.coroutines.launch
 
 data class ChatMessage(
@@ -193,8 +194,13 @@ fun ChatScreen(
                                         listState.animateScrollToItem(messages.size)
                                         
                                         try {
-                                            val response = com.runanywhere.sdk.public.RunAnywhere.chat(userMessage)
-                                            messages = messages + ChatMessage(response, isUser = false)
+                                            val result = RunAnywhere.generate(userMessage)
+                                            val replyText = if (!result.error_message.isNullOrBlank()) {
+                                                "Error: ${result.error_message}"
+                                            } else {
+                                                result.text
+                                            }
+                                            messages = messages + ChatMessage(replyText, isUser = false)
                                             listState.animateScrollToItem(messages.size)
                                         } catch (e: Exception) {
                                             messages = messages + ChatMessage(

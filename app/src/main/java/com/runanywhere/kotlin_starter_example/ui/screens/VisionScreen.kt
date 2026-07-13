@@ -34,11 +34,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
 import com.runanywhere.kotlin_starter_example.ui.theme.*
+import ai.runanywhere.proto.v1.VLMImageFormat
+import ai.runanywhere.proto.v1.VLMStreamEventKind
 import com.runanywhere.sdk.public.RunAnywhere
-import com.runanywhere.sdk.public.extensions.VLM.VLMGenerationOptions
-import com.runanywhere.sdk.public.extensions.VLM.VLMImage
 import com.runanywhere.sdk.public.extensions.cancelVLMGeneration
 import com.runanywhere.sdk.public.extensions.processImageStream
+import com.runanywhere.sdk.public.types.RAVLMGenerationOptions
+import com.runanywhere.sdk.public.types.RAVLMImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -191,18 +193,31 @@ fun VisionScreen(
                             tokensPerSecond = 0f
 
                             try {
-                                val vlmImage = VLMImage.fromFilePath(path)
-                                val options = VLMGenerationOptions(maxTokens = 300)
+                                val vlmImage = RAVLMImage(
+                                    file_path = path,
+                                    format = VLMImageFormat.VLM_IMAGE_FORMAT_FILE_PATH,
+                                )
+                                val options = RAVLMGenerationOptions(prompt = prompt, max_tokens = 300)
                                 val startTime = System.currentTimeMillis()
                                 var tokenCount = 0
 
-                                RunAnywhere.processImageStream(vlmImage, prompt, options)
-                                    .collect { token ->
-                                        description += token
-                                        tokenCount++
-                                        val elapsed = System.currentTimeMillis() - startTime
-                                        if (elapsed > 0) {
-                                            tokensPerSecond = tokenCount * 1000f / elapsed
+                                RunAnywhere.processImageStream(vlmImage, options)
+                                    .collect { event ->
+                                        when (event.kind) {
+                                            VLMStreamEventKind.VLM_STREAM_EVENT_KIND_TOKEN -> {
+                                                if (event.token.isNotEmpty()) {
+                                                    description += event.token
+                                                    tokenCount++
+                                                    val elapsed = System.currentTimeMillis() - startTime
+                                                    if (elapsed > 0) {
+                                                        tokensPerSecond = tokenCount * 1000f / elapsed
+                                                    }
+                                                }
+                                            }
+                                            VLMStreamEventKind.VLM_STREAM_EVENT_KIND_ERROR -> {
+                                                errorMessage = "VLM Error: ${event.error_message}"
+                                            }
+                                            else -> Unit
                                         }
                                     }
                             } catch (e: Exception) {
@@ -213,7 +228,7 @@ fun VisionScreen(
                         }
                     },
                     onStop = {
-                        RunAnywhere.cancelVLMGeneration()
+                        scope.launch { RunAnywhere.cancelVLMGeneration() }
                     }
                 )
             }
