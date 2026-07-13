@@ -256,9 +256,9 @@ fun SpeechToTextScreen(
                                     val result = withContext(Dispatchers.IO) {
                                         RunAnywhere.transcribe(audioData)
                                     }
-                                    
-                                    if (result.isNotBlank()) {
-                                        transcription = result
+
+                                    if (result.text.isNotBlank()) {
+                                        transcription = result.text
                                         errorMessage = null
                                     } else {
                                         errorMessage = "No speech detected"
