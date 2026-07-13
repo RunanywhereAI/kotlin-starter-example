@@ -28,7 +28,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
 import com.runanywhere.kotlin_starter_example.ui.theme.*
+import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.extensions.LLM.*
+import com.runanywhere.sdk.public.extensions.generateWithTools
+import com.runanywhere.sdk.public.extensions.registerTool
+import com.runanywhere.sdk.public.types.RALLMGenerationOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -104,29 +108,37 @@ fun ToolCallingScreen(
                 listState.animateScrollToItem(messages.size)
                 
                 try {
-                    val result = RunAnywhereToolCalling.generateWithTools(
+                    val result = RunAnywhere.generateWithTools(
                         prompt = text,
-                        options = ToolCallingOptions(
-                            maxToolCalls = 3,
-                            autoExecute = true,
+                        options = RALLMGenerationOptions(
                             temperature = 0.7f,
-                            maxTokens = 512
-                        )
+                            max_tokens = 512,
+                        ),
+                        toolOptions = RAToolCallingOptions(
+                            max_tool_calls = 3,
+                            auto_execute = true,
+                        ),
+                        toolChoice = null,
+                        forcedToolName = null,
                     )
-                    
-                    val toolCallInfos = result.toolCalls.mapIndexed { index, call ->
-                        val toolResult = result.toolResults.getOrNull(index)
+
+                    val toolCallInfos = result.tool_calls.mapIndexed { index, call ->
+                        val toolResult = result.tool_results.getOrNull(index)
+                        val argumentsMap = runCatching { ToolValue.parseObjectJSON(call.arguments_json) }
+                            .getOrDefault(emptyMap())
+                        val resultMap = toolResult?.result_json
+                            ?.let { json -> runCatching { ToolValue.parseObjectJSON(json) }.getOrNull() }
                         ToolCallInfo(
-                            toolName = call.toolName,
-                            arguments = call.arguments.entries.joinToString(", ") {
+                            toolName = call.name,
+                            arguments = argumentsMap.entries.joinToString(", ") {
                                 "${it.key}: ${formatToolValue(it.value)}"
                             },
-                            result = toolResult?.result?.let { formatToolResult(it) },
+                            result = resultMap?.let { formatToolResult(it) },
                             error = toolResult?.error,
                             success = toolResult?.success ?: false
                         )
                     }
-                    
+
                     messages = messages + ToolChatMessage(
                         text = result.text,
                         isUser = false,
@@ -764,14 +776,14 @@ private fun CodeBlock(title: String, code: String) {
 
 private suspend fun registerDemoTools() {
     // Weather Tool
-    RunAnywhereToolCalling.registerTool(
+    RunAnywhere.registerTool(
         definition = ToolDefinition(
             name = "get_weather",
             description = "Gets the current weather for a given location using Open-Meteo API",
             parameters = listOf(
                 ToolParameter(
                     name = "location",
-                    type = ToolParameterType.STRING,
+                    type = ToolParameterType.TOOL_PARAMETER_TYPE_STRING,
                     description = "City name (e.g., 'San Francisco', 'London', 'Tokyo')",
                     required = true
                 )
@@ -779,13 +791,13 @@ private suspend fun registerDemoTools() {
             category = "Utility"
         ),
         executor = { args ->
-            val location = args["location"]?.stringValue ?: "San Francisco"
+            val location = args["location"]?.string ?: "San Francisco"
             fetchWeather(location)
         }
     )
-    
+
     // Time Tool
-    RunAnywhereToolCalling.registerTool(
+    RunAnywhere.registerTool(
         definition = ToolDefinition(
             name = "get_current_time",
             description = "Gets the current date, time, and timezone information",
@@ -797,7 +809,7 @@ private suspend fun registerDemoTools() {
             val dateFormatter = SimpleDateFormat("EEEE, MMMM d, yyyy 'at' h:mm:ss a", Locale.getDefault())
             val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
             val tz = TimeZone.getDefault()
-            
+
             mapOf(
                 "datetime" to ToolValue.string(dateFormatter.format(now)),
                 "time" to ToolValue.string(timeFormatter.format(now)),
@@ -806,16 +818,16 @@ private suspend fun registerDemoTools() {
             )
         }
     )
-    
+
     // Calculator Tool
-    RunAnywhereToolCalling.registerTool(
+    RunAnywhere.registerTool(
         definition = ToolDefinition(
             name = "calculate",
             description = "Performs math calculations. Supports +, -, *, /, and parentheses",
             parameters = listOf(
                 ToolParameter(
                     name = "expression",
-                    type = ToolParameterType.STRING,
+                    type = ToolParameterType.TOOL_PARAMETER_TYPE_STRING,
                     description = "Math expression (e.g., '2 + 2 * 3', '(10 + 5) / 3')",
                     required = true
                 )
@@ -823,7 +835,7 @@ private suspend fun registerDemoTools() {
             category = "Utility"
         ),
         executor = { args ->
-            val expression = args["expression"]?.stringValue ?: "0"
+            val expression = args["expression"]?.string ?: "0"
             evaluateMathExpression(expression)
         }
     )
@@ -879,10 +891,10 @@ private suspend fun fetchWeather(location: String): Map<String, ToolValue> {
                 
                 mapOf(
                     "location" to ToolValue.string(resolvedName),
-                    "temperature_celsius" to ToolValue.number(temperature),
-                    "temperature_fahrenheit" to ToolValue.number(temperature * 9/5 + 32),
-                    "humidity_percent" to ToolValue.number(humidity),
-                    "wind_speed_kmh" to ToolValue.number(windSpeed),
+                    "temperature_celsius" to ToolValue.double(temperature),
+                    "temperature_fahrenheit" to ToolValue.double(temperature * 9/5 + 32),
+                    "humidity_percent" to ToolValue.int(humidity),
+                    "wind_speed_kmh" to ToolValue.double(windSpeed),
                     "condition" to ToolValue.string(condition)
                 )
             }
@@ -916,7 +928,7 @@ private fun evaluateMathExpression(expression: String): Map<String, ToolValue> {
         
         val result = evaluateSimpleExpression(cleaned)
         mapOf(
-            "result" to ToolValue.number(result),
+            "result" to ToolValue.double(result),
             "expression" to ToolValue.string(expression)
         )
     } catch (e: Exception) {
@@ -1002,13 +1014,13 @@ private fun parseFactor(parser: TokenParser): Double {
 }
 
 private fun formatToolValue(value: ToolValue): String {
-    return when (value) {
-        is ToolValue.StringValue -> "\"${value.value}\""
-        is ToolValue.NumberValue -> value.value.toString()
-        is ToolValue.BoolValue -> value.value.toString()
-        is ToolValue.NullValue -> "null"
-        is ToolValue.ArrayValue -> "[...]"
-        is ToolValue.ObjectValue -> "{...}"
+    return when {
+        value.string_value != null -> "\"${value.string_value}\""
+        value.number_value != null -> value.number_value.toString()
+        value.bool_value != null -> value.bool_value.toString()
+        value.array_value != null -> "[...]"
+        value.object_value != null -> "{...}"
+        else -> "null"
     }
 }
 
