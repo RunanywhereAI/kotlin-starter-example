@@ -228,7 +228,7 @@ fun VisionScreen(
                         }
                     },
                     onStop = {
-                        RunAnywhere.cancelVLMGeneration()
+                        scope.launch { RunAnywhere.cancelVLMGeneration() }
                     }
                 )
             }
