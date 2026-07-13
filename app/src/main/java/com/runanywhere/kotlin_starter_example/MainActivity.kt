@@ -21,6 +21,7 @@ import com.runanywhere.kotlin_starter_example.ui.screens.VoicePipelineScreen
 import com.runanywhere.kotlin_starter_example.ui.theme.KotlinStarterTheme
 import com.runanywhere.sdk.core.onnx.ONNX
 import com.runanywhere.sdk.llm.llamacpp.LlamaCPP
+import com.runanywhere.sdk.npu.qhexrt.QHexRT
 import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.configuration.SDKEnvironment
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +59,12 @@ class MainActivity : ComponentActivity() {
                 context = this@MainActivity,
                 environment = SDKEnvironment.SDK_ENVIRONMENT_DEVELOPMENT,
             )
+
+            // QHexRT (Qualcomm Hexagon NPU). Registered after initialize() because its
+            // skel installer needs the application Context installed by RunAnywhere.initialize()
+            // above. Registration is rejected internally (no-op) on devices without a supported
+            // Hexagon NPU, so this is safe to call unconditionally.
+            QHexRT.register()
 
             ModelService.registerDefaultModels()
         }

@@ -82,6 +82,7 @@ dependencies {
     implementation(libs.runanywhere.sdk)
     implementation(libs.runanywhere.llamacpp)
     implementation(libs.runanywhere.onnx)
+    implementation(libs.runanywhere.qhexrt)
     
     // Testing
     testImplementation(libs.junit)
