@@ -1,7 +1,6 @@
 package com.runanywhere.runanywhereai.ui.screens.models
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,74 +29,41 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import ai.runanywhere.proto.v1.ModelCategory
+import ai.runanywhere.proto.v1.InferenceFramework
 import com.runanywhere.runanywhereai.data.settings.SettingsRepository
 import com.runanywhere.runanywhereai.ui.theme.LocalDimens
 import com.runanywhere.runanywhereai.ui.theme.icons.RACIcons
-import com.runanywhere.runanywhereai.ui.theme.primaryGreen
 import com.runanywhere.sdk.public.extensions.Models.isBuiltIn
 import com.runanywhere.sdk.public.extensions.Models.isDownloadedOnDisk
 import com.runanywhere.sdk.public.types.RAModelInfo
 
-// A family plus its variants, ordered smaller → larger (by footprint) so the
-// recommended / default variant surfaces first and feel labels read naturally.
-data class FamilyGroup(
-    val family: ModelFamily,
-    val variants: List<RAModelInfo>,
+/** One organisation and every model it publishes in the current picker scope. */
+data class OrgGroup(
+    val org: ModelOrg,
+    val models: List<RAModelInfo>,
 ) {
-    val optionCount: Int get() = variants.size
-    val hasNpuVariant: Boolean get() = family.key.endsWith("-npu")
+    val optionCount: Int get() = models.size
 
-    // Category of the primary (lead) variant — drives the category-based family sort.
-    val category: ModelCategory get() = variants.first().category
+    val hasNpuVariant: Boolean
+        get() = models.any { it.framework == InferenceFramework.INFERENCE_FRAMEWORK_QHEXRT }
 
-    // True when any variant is already downloaded or built in — ready families sort first.
-    val hasReadyVariant: Boolean get() = variants.any { it.isBuiltIn || it.isDownloadedOnDisk }
-
-    // The single cleanest tag shown on the collapsed family card: prefer a notable
-    // capability from the lead variant, else the lead variant's feel word.
-    val headlineTag: ConsumerTag?
-        get() = variants.firstOrNull()?.consumerTags()?.let { tags ->
-            tags.firstOrNull { it.kind == ConsumerTagKind.CAPABILITY } ?: tags.firstOrNull()
-        }
+    val hasReadyVariant: Boolean
+        get() = models.any { it.isBuiltIn || it.isDownloadedOnDisk }
 }
 
-// Chat → vision → voice → documents → other. Mirrors iOS ModelFamilyCatalog.categoryRank.
-private fun ModelCategory.familyRank(): Int = when (this) {
-    ModelCategory.MODEL_CATEGORY_LANGUAGE -> 0
-    ModelCategory.MODEL_CATEGORY_MULTIMODAL,
-    ModelCategory.MODEL_CATEGORY_VISION,
-    ModelCategory.MODEL_CATEGORY_IMAGE_GENERATION -> 1
-    ModelCategory.MODEL_CATEGORY_SPEECH_RECOGNITION,
-    ModelCategory.MODEL_CATEGORY_SPEECH_SYNTHESIS,
-    ModelCategory.MODEL_CATEGORY_AUDIO,
-    ModelCategory.MODEL_CATEGORY_VOICE_ACTIVITY_DETECTION -> 2
-    ModelCategory.MODEL_CATEGORY_EMBEDDING -> 3
-    else -> 4
-}
+/** Groups models by organisation, variants smaller → larger, orgs in declaration order. */
+fun List<RAModelInfo>.toOrgGroups(): List<OrgGroup> =
+    groupBy { it.org() }
+        .map { (org, models) -> OrgGroup(org, models.sortedBy { it.effectiveBytes() }) }
+        .sortedBy { it.org.ordinal }
 
-// Groups models into families, ordering variants smaller → larger and families by
-// category (chat → vision → voice → docs → other), then ready-first, then name.
-fun List<RAModelInfo>.toFamilyGroups(): List<FamilyGroup> =
-    groupBy { it.family().key }
-        .map { (_, models) ->
-            val family = models.first().family()
-            FamilyGroup(family, models.sortedBy { it.effectiveBytes() })
-        }
-        .sortedWith(
-            compareBy<FamilyGroup> { it.category.familyRank() }
-                .thenByDescending { it.hasReadyVariant }
-                .thenBy { it.family.title.lowercase() },
-        )
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun FamilyCard(
-    group: FamilyGroup,
+fun OrgCard(
+    group: OrgGroup,
     viewModel: ModelSelectionViewModel,
     state: ModelSelectionState,
     onSelect: (RAModelInfo) -> Unit,
@@ -108,7 +74,7 @@ fun FamilyCard(
 ) {
     val dimens = LocalDimens.current
     var expanded by remember { mutableStateOf(initiallyExpanded) }
-    val readyCount = group.variants.count { viewModel.isReady(it) }
+    val readyCount = group.models.count { viewModel.isReady(it) }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -124,38 +90,40 @@ fun FamilyCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = group.variants.first().brand().icon,
+                    imageVector = group.org.brand.icon,
                     contentDescription = null,
-                    tint = group.variants.first().brand().color,
+                    tint = group.org.brand.color,
                     modifier = Modifier.size(dimens.iconLg),
                 )
-                Spacer(Modifier.width(dimens.spacingMd))
+                Spacer(modifier = Modifier.width(dimens.spacingMd))
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(dimens.spacingXs),
                 ) {
                     Text(
-                        group.family.title,
+                        group.org.displayName,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        group.family.tagline,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(dimens.spacingXs)) {
-                        group.headlineTag?.let { TagPill(it.label, MaterialTheme.colorScheme.primary) }
-                        val optionsLabel = if (group.optionCount == 1) "1 option" else "${group.optionCount} options"
-                        TagPill(optionsLabel, MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (readyCount > 0) TagPill("$readyCount ready", primaryGreen)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(dimens.spacingXs),
+                        verticalArrangement = Arrangement.spacedBy(dimens.spacingXs),
+                    ) {
+                        if (group.hasNpuVariant) {
+                            ModelPill("NPU", ModelPillColors.Capability, icon = RACIcons.Outline.Cpu)
+                        }
+                        if (readyCount > 0) {
+                            ModelPill("$readyCount ready", ModelPillColors.Availability)
+                        } else {
+                            val optionsLabel =
+                                if (group.optionCount == 1) "1 model" else "${group.optionCount} models"
+                            ModelPill(optionsLabel, ModelPillColors.Neutral)
+                        }
                     }
                 }
-                Spacer(Modifier.width(dimens.spacingSm))
+                Spacer(modifier = Modifier.width(dimens.spacingSm))
                 Icon(
                     imageVector = if (expanded) RACIcons.Outline.ChevronUp else RACIcons.Outline.ChevronDown,
                     contentDescription = if (expanded) "Collapse" else "Expand",
@@ -171,21 +139,20 @@ fun FamilyCard(
                         thickness = 0.5.dp,
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     )
-                    group.variants.forEachIndexed { index, variant ->
-                        VariantRow(
-                            variant = variant,
-                            // Auto-highlight the first (best-fit for device) variant.
-                            isRecommended = index == 0 && group.variants.size > 1,
-                            isCurrent = state.currentModelId == variant.id,
-                            isReady = viewModel.isReady(variant),
-                            isBusy = state.busyModelId == variant.id,
-                            progressPercent = if (state.busyModelId == variant.id) state.progressPercent else null,
-                            onSelect = { onSelect(variant) },
-                            onDownload = { onDownload(variant) },
-                            onCancel = { viewModel.cancelDownload(variant.id) },
-                            onDelete = if (viewModel.isDeletable(variant)) ({ onDelete(variant) }) else null,
+                    group.models.forEachIndexed { index, model ->
+                        OrgModelRow(
+                            model = model,
+                            isRecommended = index == 0 && group.models.size > 1,
+                            isCurrent = state.currentModelId == model.id,
+                            isReady = viewModel.isReady(model),
+                            isBusy = state.busyModelId == model.id,
+                            progressPercent = if (state.busyModelId == model.id) state.progressPercent else null,
+                            onSelect = { onSelect(model) },
+                            onDownload = { onDownload(model) },
+                            onCancel = { viewModel.cancelDownload(model.id) },
+                            onDelete = if (viewModel.isDeletable(model)) ({ onDelete(model) }) else null,
                         )
-                        if (index < group.variants.lastIndex) {
+                        if (index < group.models.lastIndex) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = dimens.spacingLg + 42.dp, end = dimens.spacingLg),
                                 thickness = 0.5.dp,
@@ -201,8 +168,8 @@ fun FamilyCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun VariantRow(
-    variant: RAModelInfo,
+private fun OrgModelRow(
+    model: RAModelInfo,
     isRecommended: Boolean,
     isCurrent: Boolean,
     isReady: Boolean,
@@ -225,35 +192,38 @@ private fun VariantRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(dimens.spacingXs),
         ) {
-            // Clean human name is the primary identifier of every variant.
             Text(
-                variant.displayTitle(),
+                model.displayTitle(),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            // Size always visible; backend as a subtle badge; feel as secondary text.
-            // FlowRow so the badge wraps below instead of truncating on narrow rows.
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(dimens.spacingSm),
                 verticalArrangement = Arrangement.spacedBy(dimens.spacingXs),
             ) {
                 Text(
-                    "${variant.sizeLabel()} · ${variant.variantFeelLabel()}",
+                    "${model.sizeLabel()} · ${model.variantFeelLabel()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                BackendBadge(framework = variant.framework, compact = true)
+                BackendBadge(framework = model.framework, compact = true)
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(dimens.spacingXs)) {
-                if (isRecommended) TagPill("Recommended", primaryGreen)
-                variant.consumerTags()
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(dimens.spacingXs),
+                verticalArrangement = Arrangement.spacedBy(dimens.spacingXs),
+            ) {
+                if (isRecommended) ModelPill("Recommended", ModelPillColors.Availability)
+                model.consumerTags()
                     .filter { it.kind == ConsumerTagKind.CAPABILITY }
-                    .forEach { TagPill(it.label, MaterialTheme.colorScheme.primary) }
-                if (variant.requiresHfAuth()) {
+                    .forEach { ModelPill(it.label, it.kind.pillColor()) }
+                if (model.requiresHfAuth()) {
                     val hasToken = SettingsRepository.settings.hfToken.isNotBlank()
-                    TagPill("Private", if (hasToken) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                    ModelPill(
+                        "Private",
+                        if (hasToken) ModelPillColors.Capability else ModelPillColors.Warning,
+                    )
                 }
             }
             if (isBusy && progressPercent != null) {
@@ -266,12 +236,12 @@ private fun VariantRow(
         }
         Spacer(Modifier.width(dimens.spacingSm))
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(dimens.spacingXs)) {
-            VariantAction(isCurrent, isReady, isBusy, variant, onDownload, onCancel)
+            OrgModelAction(isCurrent, isReady, isBusy, model, onDownload, onCancel)
             if (onDelete != null && isReady) {
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = RACIcons.Outline.Trash,
-                        contentDescription = "Delete ${variant.name}",
+                        contentDescription = "Delete ${model.name}",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(dimens.iconSm),
                     )
@@ -282,28 +252,28 @@ private fun VariantRow(
 }
 
 @Composable
-private fun VariantAction(
+private fun OrgModelAction(
     isCurrent: Boolean,
     isReady: Boolean,
     isBusy: Boolean,
-    variant: RAModelInfo,
+    model: RAModelInfo,
     onDownload: () -> Unit,
     onCancel: (() -> Unit)? = null,
 ) {
     when {
-        isCurrent -> TagPill("Loaded", primaryGreen)
-        isBusy -> VariantProgressAction(onCancel)
-        isReady -> TagPill("Use", primaryGreen)
+        isCurrent -> ModelPill("Loaded", ModelPillColors.Availability)
+        isBusy -> OrgProgressAction(onCancel)
+        isReady -> ModelPill("Use", ModelPillColors.Availability)
         else -> {
             val dimens = LocalDimens.current
-            val needsToken = variant.requiresHfAuth() && SettingsRepository.settings.hfToken.isBlank()
+            val needsToken = model.requiresHfAuth() && SettingsRepository.settings.hfToken.isBlank()
             TextButton(onClick = onDownload) {
                 Icon(
                     imageVector = RACIcons.Outline.Download,
                     contentDescription = null,
                     modifier = Modifier.size(dimens.iconSm),
                 )
-                Spacer(Modifier.width(dimens.spacingXs))
+                Spacer(modifier = Modifier.width(dimens.spacingXs))
                 Text(
                     text = if (needsToken) "Set token" else "Get",
                     style = MaterialTheme.typography.labelLarge,
@@ -314,10 +284,8 @@ private fun VariantAction(
     }
 }
 
-// Busy-state control. With [onCancel] the spinner becomes a tap-to-cancel target
-// that stops the in-flight download; without it, a plain progress indicator.
 @Composable
-private fun VariantProgressAction(onCancel: (() -> Unit)?) {
+private fun OrgProgressAction(onCancel: (() -> Unit)?) {
     if (onCancel == null) {
         CircularProgressIndicator(
             modifier = Modifier.size(20.dp),
@@ -340,25 +308,5 @@ private fun VariantProgressAction(onCancel: (() -> Unit)?) {
                 modifier = Modifier.size(12.dp),
             )
         }
-    }
-}
-
-@Composable
-private fun TagPill(text: String, color: Color) {
-    val dimens = LocalDimens.current
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(dimens.radiusSm))
-            .background(color.copy(alpha = 0.12f))
-            .padding(horizontal = dimens.spacingSm, vertical = dimens.spacingXs),
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
