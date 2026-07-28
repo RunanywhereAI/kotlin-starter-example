@@ -1,0 +1,7 @@
+## Copy to local.properties (gitignored).
+
+sdk.dir=/path/to/Android/sdk
+
+# Optional: Hugging Face token for gated HNPU repos (e.g. Magpie TTS).
+# Applied at debug bootstrap via BuildConfig — never commit a real token.
+hf.token=

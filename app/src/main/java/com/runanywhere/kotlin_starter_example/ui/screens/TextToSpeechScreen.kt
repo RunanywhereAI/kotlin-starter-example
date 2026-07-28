@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
+import com.runanywhere.kotlin_starter_example.ui.components.ModelPicker
 import com.runanywhere.kotlin_starter_example.ui.theme.*
 import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.extensions.speak
@@ -29,6 +30,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private fun isKittenTts(modelId: String): Boolean = modelId.startsWith("kitten_")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TextToSpeechScreen(
@@ -36,7 +39,10 @@ fun TextToSpeechScreen(
     modelService: ModelService = viewModel(),
     modifier: Modifier = Modifier
 ) {
-    var inputText by remember { mutableStateOf("Hello! This is a test of the text-to-speech system.") }
+    val kittenMode = isKittenTts(modelService.ttsModelId)
+    var inputText by remember {
+        mutableStateOf("Hello! This is a test of the text-to-speech system.")
+    }
     var isSpeaking by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
@@ -66,16 +72,45 @@ fun TextToSpeechScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Model loader section
+            ModelPicker(
+                label = "Voice model",
+                options = modelService.ttsOptions,
+                selectedId = modelService.ttsModelId,
+                onSelect = { modelService.selectTts(it) },
+                enabled = modelService.isSdkReady &&
+                    !modelService.isTTSDownloading &&
+                    !modelService.isTTSLoading,
+            )
+            if (modelService.ttsOptions.size > 1) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             if (!modelService.isTTSLoaded) {
                 ModelLoaderWidget(
-                    modelName = "Piper TTS",
+                    modelName = modelService.ttsModelName,
                     isDownloading = modelService.isTTSDownloading,
                     isLoading = modelService.isTTSLoading,
                     isLoaded = modelService.isTTSLoaded,
                     downloadProgress = modelService.ttsDownloadProgress,
-                    onLoadClick = { modelService.downloadAndLoadTTS() }
+                    onLoadClick = { modelService.downloadAndLoadTTS() },
+                    backendLabel = if (modelService.ttsUsesNpu) "QHexRT · Hexagon NPU" else "Sherpa-ONNX",
+                    enabled = modelService.isSdkReady,
                 )
+                modelService.statusMessage?.let { note ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted,
+                    )
+                }
+                modelService.errorMessage?.let { err ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = err,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Spacer(modifier = Modifier.height(24.dp))
             }
             
@@ -116,6 +151,15 @@ fun TextToSpeechScreen(
                             minLines = 4,
                             maxLines = 8
                         )
+                        if (kittenMode) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Kitten stitches long text in the QHexRT engine " +
+                                    "(phoneme windows ≤ Lmax, crossfaded).",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextMuted,
+                            )
+                        }
                     }
                 }
                 
@@ -129,8 +173,10 @@ fun TextToSpeechScreen(
                             isSpeaking = true
                             scope.launch {
                                 try {
-                                    // The SDK synthesizes and plays the audio in one call.
                                     withContext(Dispatchers.IO) {
+                                        // Maven QHexRT: single speak() only.
+                                        // (Local-engine WAV dump was removed — double synthesize
+                                        // spiked RAM and contributed to device reboots.)
                                         RunAnywhere.speak(inputText, RATTSOptions())
                                     }
 
@@ -176,12 +222,13 @@ fun TextToSpeechScreen(
             // Sample texts
             if (modelService.isTTSLoaded) {
                 Spacer(modifier = Modifier.height(32.dp))
-                SampleTextsCard { sampleText ->
+                SampleTextsCard(kittenMode = kittenMode) { sampleText ->
                     inputText = sampleText
+                    errorMessage = null
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
-                InfoCard()
+                InfoCard(kittenMode = kittenMode)
             }
         }
     }
@@ -242,7 +289,10 @@ private fun SpeakButton(
 }
 
 @Composable
-private fun SampleTextsCard(onSelectSample: (String) -> Unit) {
+private fun SampleTextsCard(
+    kittenMode: Boolean,
+    onSelectSample: (String) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -266,7 +316,7 @@ private fun SampleTextsCard(onSelectSample: (String) -> Unit) {
                 "Hello! This is a test of the text-to-speech system.",
                 "The quick brown fox jumps over the lazy dog.",
                 "Artificial intelligence is transforming how we interact with technology.",
-                "Welcome to the future of on-device AI processing."
+                "Welcome to the future of on-device AI processing.",
             )
             
             samples.forEach { sample ->
@@ -298,7 +348,7 @@ private fun SampleTextsCard(onSelectSample: (String) -> Unit) {
 }
 
 @Composable
-private fun InfoCard() {
+private fun InfoCard(kittenMode: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -318,10 +368,17 @@ private fun InfoCard() {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "• Enter text in the field above\n" +
+                text = if (kittenMode) {
+                    "• Enter any text — QHexRT chunks Kitten phoneme windows and crossfades them\n" +
+                        "• Spaced place names like \"south hampton\" normalize to lexicon forms\n" +
+                        "• Melo/Kokoro remain clearer for long prose\n" +
+                        "• All processing happens on-device"
+                } else {
+                    "• Enter text in the field above\n" +
                         "• Or select a sample text\n" +
                         "• Tap the speaker button to hear it\n" +
-                        "• All processing happens on-device",
+                        "• All processing happens on-device"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextMuted
             )

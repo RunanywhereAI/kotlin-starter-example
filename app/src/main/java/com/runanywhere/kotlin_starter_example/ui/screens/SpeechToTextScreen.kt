@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
+import com.runanywhere.kotlin_starter_example.ui.components.ModelPicker
 import com.runanywhere.kotlin_starter_example.ui.theme.*
 import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.extensions.transcribe
@@ -165,15 +166,28 @@ fun SpeechToTextScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Model loader section
+            ModelPicker(
+                label = "Speech model",
+                options = modelService.sttOptions,
+                selectedId = modelService.sttModelId,
+                onSelect = { modelService.selectStt(it) },
+                enabled = modelService.isSdkReady &&
+                    !modelService.isSTTDownloading &&
+                    !modelService.isSTTLoading,
+            )
+            if (modelService.sttOptions.size > 1) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             if (!modelService.isSTTLoaded) {
                 ModelLoaderWidget(
-                    modelName = "Whisper Tiny",
+                    modelName = modelService.sttModelName,
                     isDownloading = modelService.isSTTDownloading,
                     isLoading = modelService.isSTTLoading,
                     isLoaded = modelService.isSTTLoaded,
                     downloadProgress = modelService.sttDownloadProgress,
-                    onLoadClick = { modelService.downloadAndLoadSTT() }
+                    onLoadClick = { modelService.downloadAndLoadSTT() },
+                    backendLabel = if (modelService.sttUsesNpu) "QHexRT · Hexagon NPU" else "Sherpa-ONNX",
+                    enabled = modelService.isSdkReady,
                 )
                 Spacer(modifier = Modifier.height(24.dp))
             }

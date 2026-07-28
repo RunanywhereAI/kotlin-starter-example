@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
+import com.runanywhere.kotlin_starter_example.ui.components.ModelPicker
 import com.runanywhere.kotlin_starter_example.ui.theme.*
 import ai.runanywhere.proto.v1.VLMImageFormat
 import ai.runanywhere.proto.v1.VLMStreamEventKind
@@ -110,33 +111,47 @@ fun VisionScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Model loader section
-            if (!modelService.isVLMLoaded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                ModelPicker(
+                    label = "Vision model",
+                    options = modelService.vlmOptions,
+                    selectedId = modelService.vlmModelId,
+                    onSelect = { modelService.selectVlm(it) },
+                    enabled = modelService.isSdkReady &&
+                        !modelService.isVLMDownloading &&
+                        !modelService.isVLMLoading,
+                )
+                if (modelService.vlmOptions.size > 1) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                if (!modelService.isVLMLoaded) {
                     ModelLoaderWidget(
-                        modelName = "SmolVLM 256M (~365 MB)",
+                        modelName = modelService.vlmModelName,
                         isDownloading = modelService.isVLMDownloading,
                         isLoading = modelService.isVLMLoading,
                         isLoaded = modelService.isVLMLoaded,
                         downloadProgress = modelService.vlmDownloadProgress,
-                        onLoadClick = { modelService.downloadAndLoadVLM() }
+                        onLoadClick = { modelService.downloadAndLoadVLM() },
+                        backendLabel = if (modelService.vlmUsesNpu) "QHexRT · Hexagon NPU" else "llama.cpp",
+                        enabled = modelService.isSdkReady,
                     )
-
-                    modelService.errorMessage?.let { error ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                    }
                 }
-            } else {
+                modelService.errorMessage?.let { error ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
+
+            if (modelService.isVLMLoaded) {
                 // Main VLM content
                 Column(
                     modifier = Modifier

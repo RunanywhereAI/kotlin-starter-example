@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.components.FeatureCard
 import com.runanywhere.kotlin_starter_example.ui.theme.*
 
@@ -29,6 +30,7 @@ private data class Feature(
 
 @Composable
 fun HomeScreen(
+    modelService: ModelService,
     onNavigateToChat: () -> Unit,
     onNavigateToSTT: () -> Unit,
     onNavigateToTTS: () -> Unit,
@@ -39,6 +41,7 @@ fun HomeScreen(
     onNavigateToRag: () -> Unit,
     onNavigateToEmbeddings: () -> Unit,
     onNavigateToStructuredOutput: () -> Unit,
+    onNavigateToQHexRTLab: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -69,12 +72,16 @@ fun HomeScreen(
             
             // Privacy info
             PrivacyInfoCard()
+
+            Spacer(modifier = Modifier.height(16.dp))
+            NpuStatusCard(modelService = modelService)
             
             Spacer(modifier = Modifier.height(32.dp))
             
             // Feature grid (data-driven, two columns, non-scrolling rows so it
             // nests cleanly inside the page's vertical scroll)
             val features = listOf(
+                Feature("Model Lab", "HNPU + CPU catalogs", Icons.Rounded.Memory, listOf(AccentGreen, AccentCyan), onNavigateToQHexRTLab),
                 Feature("Chat", "LLM Text Generation", Icons.Rounded.Chat, listOf(AccentCyan, Color(0xFF0EA5E9)), onNavigateToChat),
                 Feature("Speech", "Speech to Text", Icons.Rounded.Mic, listOf(AccentViolet, Color(0xFF7C3AED)), onNavigateToSTT),
                 Feature("Voice", "Text to Speech", Icons.Rounded.VolumeUp, listOf(AccentPink, Color(0xFFDB2777)), onNavigateToTTS),
@@ -110,7 +117,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(32.dp))
             
             // Model info
-            ModelInfoSection()
+            ModelInfoSection(modelService = modelService)
             
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -202,7 +209,66 @@ private fun PrivacyInfoCard() {
 }
 
 @Composable
-private fun ModelInfoSection() {
+private fun NpuStatusCard(modelService: ModelService) {
+    val ready = modelService.isSdkReady
+    val supported = modelService.npuSupported
+    val title = when {
+        !ready -> "Starting RunAnywhere SDK…"
+        supported -> "Hexagon NPU ready"
+        else -> "CPU backends active"
+    }
+    val detail = when {
+        !ready -> "Registering LlamaCPP, ONNX, and QHexRT…"
+        supported -> {
+            val arch = modelService.npuArchName ?: "Hexagon"
+            val soc = modelService.npuSocModel?.let { " · $it" }.orEmpty()
+            val count = modelService.registeredNpuCount
+            "QHexRT catalog: $count HNPU model(s) for $arch$soc. Open QHexRT Lab to load any of them."
+        }
+        else -> "No supported Hexagon NPU detected. Demos use llama.cpp / Sherpa / ONNX."
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = SurfaceCard.copy(alpha = 0.6f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Memory,
+                contentDescription = null,
+                tint = if (supported) AccentGreen else AccentCyan.copy(alpha = 0.8f),
+                modifier = Modifier.size(28.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelInfoSection(modelService: ModelService) {
+    fun label(name: String, usesNpu: Boolean): String =
+        if (usesNpu) "$name · NPU" else name
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -218,37 +284,37 @@ private fun ModelInfoSection() {
             ModelInfoRow(
                 icon = Icons.Rounded.Memory,
                 title = "LLM",
-                value = "SmolLM2 360M"
+                value = label(modelService.llmModelName, modelService.llmUsesNpu)
             )
             Spacer(modifier = Modifier.height(12.dp))
             ModelInfoRow(
                 icon = Icons.Rounded.RemoveRedEye,
                 title = "VLM",
-                value = "SmolVLM 256M"
+                value = modelService.vlmModelName
             )
             Spacer(modifier = Modifier.height(12.dp))
             ModelInfoRow(
                 icon = Icons.Rounded.Hearing,
                 title = "STT",
-                value = "Whisper Tiny"
+                value = label(modelService.sttModelName, modelService.sttUsesNpu)
             )
             Spacer(modifier = Modifier.height(12.dp))
             ModelInfoRow(
                 icon = Icons.Rounded.RecordVoiceOver,
                 title = "TTS",
-                value = "Piper Lessac"
+                value = label(modelService.ttsModelName, modelService.ttsUsesNpu)
             )
             Spacer(modifier = Modifier.height(12.dp))
             ModelInfoRow(
                 icon = Icons.Rounded.GraphicEq,
                 title = "VAD",
-                value = "Silero VAD"
+                value = modelService.vadModelName
             )
             Spacer(modifier = Modifier.height(12.dp))
             ModelInfoRow(
                 icon = Icons.Rounded.Hub,
                 title = "Embedding",
-                value = "MiniLM L6 v2"
+                value = label(modelService.embeddingModelName, modelService.embeddingUsesNpu)
             )
         }
     }

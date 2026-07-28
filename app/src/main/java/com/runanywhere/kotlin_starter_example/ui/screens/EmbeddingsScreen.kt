@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
+import com.runanywhere.kotlin_starter_example.ui.components.ModelPicker
 import com.runanywhere.kotlin_starter_example.ui.theme.*
 import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.extensions.embeddings
@@ -67,14 +68,28 @@ fun EmbeddingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
+            ModelPicker(
+                label = "Embedding model",
+                options = modelService.embeddingOptions,
+                selectedId = modelService.embeddingModelId,
+                onSelect = { modelService.selectEmbedding(it) },
+                enabled = modelService.isSdkReady &&
+                    !modelService.isEmbeddingDownloading &&
+                    !modelService.isEmbeddingLoading,
+            )
+            if (modelService.embeddingOptions.size > 1) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             if (!modelService.isEmbeddingLoaded) {
                 ModelLoaderWidget(
-                    modelName = "All MiniLM L6 v2",
+                    modelName = modelService.embeddingModelName,
                     isDownloading = modelService.isEmbeddingDownloading,
                     isLoading = modelService.isEmbeddingLoading,
                     isLoaded = modelService.isEmbeddingLoaded,
                     downloadProgress = modelService.embeddingDownloadProgress,
                     onLoadClick = { modelService.downloadAndLoadEmbedding() },
+                    backendLabel = if (modelService.embeddingUsesNpu) "QHexRT · Hexagon NPU" else "ONNX",
+                    enabled = modelService.isSdkReady,
                 )
                 Spacer(modifier = Modifier.height(20.dp))
             }

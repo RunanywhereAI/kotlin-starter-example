@@ -12,21 +12,16 @@ composeBom = "2024.12.01"
 lifecycleViewmodelCompose = "2.8.7"
 navigationCompose = "2.8.5"
 coroutines = "1.9.0"
-runanywhere = "0.20.10"
-# Hexagon NPU backend is not yet published at 0.20.10; pin its last release.
-# Its POM depends on runanywhere-sdk 0.20.9, which Gradle resolves up to 0.20.10.
-runanywhereQhexrt = "0.20.9"
+runanywhere = "0.20.11"
 
 [libraries]
-# RunAnywhere SDK (0.20.10 - unified proto-typed API surface)
-# VLM: RunAnywhere.loadModel(), processImageStream(), processImage()
-# Tool Calling: RunAnywhere.registerTool(), generateWithTools()
+# RunAnywhere SDK (0.20.11 - Maven Central)
 # NOTE: core artifacts publish WITHOUT the -android suffix (sdk/llamacpp/onnx);
-# only qhexrt keeps -android. The -android core coordinates stopped at 0.20.8.
+# only qhexrt keeps -android.
 runanywhere-sdk = { group = "io.github.sanchitmonga22", name = "runanywhere-sdk", version.ref = "runanywhere" }
 runanywhere-llamacpp = { group = "io.github.sanchitmonga22", name = "runanywhere-llamacpp", version.ref = "runanywhere" }
 runanywhere-onnx = { group = "io.github.sanchitmonga22", name = "runanywhere-onnx", version.ref = "runanywhere" }
-runanywhere-qhexrt = { group = "io.github.sanchitmonga22", name = "runanywhere-qhexrt-android", version.ref = "runanywhereQhexrt" }
+runanywhere-qhexrt = { group = "io.github.sanchitmonga22", name = "runanywhere-qhexrt-android", version.ref = "runanywhere" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

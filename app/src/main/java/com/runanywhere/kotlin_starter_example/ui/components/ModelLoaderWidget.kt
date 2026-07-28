@@ -17,7 +17,9 @@ fun ModelLoaderWidget(
     isLoaded: Boolean,
     downloadProgress: Float,
     onLoadClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backendLabel: String? = null,
+    enabled: Boolean = true,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -45,6 +47,7 @@ fun ModelLoaderWidget(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = when {
+                            !enabled -> "Starting SDK..."
                             isLoaded -> "Ready"
                             isLoading -> "Loading..."
                             isDownloading -> "Downloading ${(downloadProgress * 100).toInt()}%"
@@ -57,12 +60,20 @@ fun ModelLoaderWidget(
                             else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         }
                     )
+                    if (!backendLabel.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = backendLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
-                
+
                 if (!isLoaded) {
                     Button(
                         onClick = onLoadClick,
-                        enabled = !isDownloading && !isLoading,
+                        enabled = enabled && !isDownloading && !isLoading,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
@@ -71,8 +82,7 @@ fun ModelLoaderWidget(
                     }
                 }
             }
-            
-            // Progress bar for downloading
+
             AnimatedVisibility(visible = isDownloading) {
                 Column {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -86,8 +96,7 @@ fun ModelLoaderWidget(
                     )
                 }
             }
-            
-            // Loading indicator
+
             AnimatedVisibility(visible = isLoading) {
                 Column {
                     Spacer(modifier = Modifier.height(12.dp))

@@ -300,12 +300,14 @@ fun VadScreen(
         ) {
             if (!modelService.isVADLoaded) {
                 ModelLoaderWidget(
-                    modelName = "Silero VAD",
+                    modelName = modelService.vadModelName,
                     isDownloading = modelService.isVADDownloading,
                     isLoading = modelService.isVADLoading,
                     isLoaded = modelService.isVADLoaded,
                     downloadProgress = modelService.vadDownloadProgress,
                     onLoadClick = { modelService.downloadAndLoadVAD() },
+                    backendLabel = "ONNX",
+                    enabled = modelService.isSdkReady,
                 )
                 Spacer(modifier = Modifier.height(24.dp))
             }

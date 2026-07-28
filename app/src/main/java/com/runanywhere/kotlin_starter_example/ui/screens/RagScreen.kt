@@ -82,13 +82,13 @@ class RagViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 prepareStatus = "Downloading embedding model..."
-                val embeddingOk = modelService.downloadModelIfNeeded(ModelService.EMBEDDING_MODEL_ID) {
+                val embeddingOk = modelService.downloadModelIfNeeded(modelService.embeddingModelId) {
                     prepareProgress = it * 0.5f
                 }
                 if (!embeddingOk) error("Embedding model unavailable")
 
                 prepareStatus = "Downloading language model..."
-                val llmOk = modelService.downloadModelIfNeeded(ModelService.LLM_MODEL_ID) {
+                val llmOk = modelService.downloadModelIfNeeded(modelService.llmModelId) {
                     prepareProgress = 0.5f + it * 0.5f
                 }
                 if (!llmOk) error("Language model unavailable")
@@ -96,8 +96,8 @@ class RagViewModel : ViewModel() {
                 prepareStatus = "Building RAG pipeline..."
                 RunAnywhere.ragCreatePipeline(
                     RAGConfiguration.defaults().copy(
-                        embedding_model_id = ModelService.EMBEDDING_MODEL_ID,
-                        llm_model_id = ModelService.LLM_MODEL_ID,
+                        embedding_model_id = modelService.embeddingModelId,
+                        llm_model_id = modelService.llmModelId,
                     ),
                 )
                 isReady = true

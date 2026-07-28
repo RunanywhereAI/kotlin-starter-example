@@ -344,30 +344,36 @@ private fun ModelLoaderSection(modelService: ModelService) {
         Text("Voice Pipeline requires all models", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
 
         ModelLoaderWidget(
-            modelName = "SmolLM2 (LLM)",
+            modelName = modelService.llmModelName,
             isDownloading = modelService.isLLMDownloading,
             isLoading = modelService.isLLMLoading,
             isLoaded = modelService.isLLMLoaded,
             downloadProgress = modelService.llmDownloadProgress,
-            onLoadClick = { modelService.downloadAndLoadLLM() }
+            onLoadClick = { modelService.downloadAndLoadLLM() },
+            backendLabel = if (modelService.llmUsesNpu) "QHexRT · Hexagon NPU" else "llama.cpp",
+            enabled = modelService.isSdkReady,
         )
 
         ModelLoaderWidget(
-            modelName = "Whisper (STT)",
+            modelName = modelService.sttModelName,
             isDownloading = modelService.isSTTDownloading,
             isLoading = modelService.isSTTLoading,
             isLoaded = modelService.isSTTLoaded,
             downloadProgress = modelService.sttDownloadProgress,
-            onLoadClick = { modelService.downloadAndLoadSTT() }
+            onLoadClick = { modelService.downloadAndLoadSTT() },
+            backendLabel = if (modelService.sttUsesNpu) "QHexRT · Hexagon NPU" else "Sherpa-ONNX",
+            enabled = modelService.isSdkReady,
         )
 
         ModelLoaderWidget(
-            modelName = "Piper (TTS)",
+            modelName = modelService.ttsModelName,
             isDownloading = modelService.isTTSDownloading,
             isLoading = modelService.isTTSLoading,
             isLoaded = modelService.isTTSLoaded,
             downloadProgress = modelService.ttsDownloadProgress,
-            onLoadClick = { modelService.downloadAndLoadTTS() }
+            onLoadClick = { modelService.downloadAndLoadTTS() },
+            backendLabel = if (modelService.ttsUsesNpu) "QHexRT · Hexagon NPU" else "Sherpa-ONNX",
+            enabled = modelService.isSdkReady,
         )
 
         Button(onClick = { modelService.downloadAndLoadAllModels() }, modifier = Modifier.fillMaxWidth()) {

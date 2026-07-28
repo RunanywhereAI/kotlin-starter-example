@@ -48,7 +48,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.runanywhere.kotlin_starter_example.services.ModelService
+import kotlin.coroutines.cancellation.CancellationException
 import com.runanywhere.kotlin_starter_example.ui.components.ModelLoaderWidget
+import com.runanywhere.kotlin_starter_example.ui.components.ModelPicker
 import com.runanywhere.kotlin_starter_example.ui.theme.AccentCyan
 import com.runanywhere.kotlin_starter_example.ui.theme.AccentViolet
 import com.runanywhere.kotlin_starter_example.ui.theme.PrimaryDark
@@ -58,6 +60,7 @@ import com.runanywhere.kotlin_starter_example.ui.theme.TextMuted
 import com.runanywhere.kotlin_starter_example.ui.theme.TextPrimary
 import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.extensions.generate
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 data class ChatMessage(
@@ -101,31 +104,44 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Model loader section
-            if (!modelService.isLLMLoaded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
+            // Model picker + loader (always show picker so users can switch QHexRT models)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                ModelPicker(
+                    label = "Language model",
+                    options = modelService.llmOptions,
+                    selectedId = modelService.llmModelId,
+                    onSelect = { modelService.selectLlm(it) },
+                    enabled = modelService.isSdkReady &&
+                        !modelService.isLLMDownloading &&
+                        !modelService.isLLMLoading,
+                )
+                if (modelService.llmOptions.size > 1) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                if (!modelService.isLLMLoaded) {
                     ModelLoaderWidget(
-                        modelName = "SmolLM2 360M",
+                        modelName = modelService.llmModelName,
                         isDownloading = modelService.isLLMDownloading,
                         isLoading = modelService.isLLMLoading,
                         isLoaded = modelService.isLLMLoaded,
                         downloadProgress = modelService.llmDownloadProgress,
-                        onLoadClick = { modelService.downloadAndLoadLLM() }
+                        onLoadClick = { modelService.downloadAndLoadLLM() },
+                        backendLabel = if (modelService.llmUsesNpu) "QHexRT · Hexagon NPU" else "llama.cpp",
+                        enabled = modelService.isSdkReady,
                     )
-                    
-                    modelService.errorMessage?.let { error ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                    }
+                }
+                modelService.errorMessage?.let { error ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
                 }
             }
             
@@ -191,8 +207,17 @@ fun ChatScreen(
                                     
                                     scope.launch {
                                         isGenerating = true
-                                        listState.animateScrollToItem(messages.size)
-                                        
+                                        // Compose scroll uses MutatorMutex; a user fling
+                                        // or overlapping scroll cancels it with
+                                        // CancellationException("Mutation interrupted").
+                                        // Ignore that for scrolling only — never surface
+                                        // it as a chat error.
+                                        try {
+                                            listState.animateScrollToItem(messages.size)
+                                        } catch (e: CancellationException) {
+                                            coroutineContext.ensureActive()
+                                        }
+
                                         try {
                                             val result = RunAnywhere.generate(userMessage)
                                             val replyText = if (!result.error_message.isNullOrBlank()) {
@@ -201,7 +226,13 @@ fun ChatScreen(
                                                 result.text
                                             }
                                             messages = messages + ChatMessage(replyText, isUser = false)
-                                            listState.animateScrollToItem(messages.size)
+                                            try {
+                                                listState.animateScrollToItem(messages.size)
+                                            } catch (e: CancellationException) {
+                                                coroutineContext.ensureActive()
+                                            }
+                                        } catch (e: CancellationException) {
+                                            throw e
                                         } catch (e: Exception) {
                                             messages = messages + ChatMessage(
                                                 "Error: ${e.message}",

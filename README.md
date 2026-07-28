@@ -1,296 +1,88 @@
 # RunAnywhere Kotlin SDK Starter
 
-A comprehensive Android starter app demonstrating the **RunAnywhere SDK** capabilities - privacy-first, on-device AI for Android with Kotlin and Jetpack Compose.
+Android starter app for the **RunAnywhere Kotlin SDK** — privacy-first, on-device AI with Jetpack Compose. Includes **QHexRT** (Qualcomm Hexagon NPU) support from Maven Central.
 
 ## Features
 
-This starter app showcases all major capabilities of the RunAnywhere SDK:
+| Demo | CPU (always available) | HNPU when Hexagon V75/V79/V81 |
+|------|------------------------|-------------------------------|
+| Chat / Tools / Structured / RAG | SmolLM2 360M (llama.cpp) | LFM2.5, Qwen3, Bonsai, … |
+| Speech-to-Text | Sherpa Whisper Tiny | Whisper Base, Moonshine, Parakeet, Canary, … |
+| Text-to-Speech | Piper Lessac | Magpie, Kitten, MeloTTS, Kokoro, … |
+| Embeddings / RAG | MiniLM L6 v2 (ONNX) | Nemotron-3-Embed, NV-EmbedQA, … |
+| Vision | SmolVLM 256M (llama.cpp) | InternVL, Qwen3-VL, Nemotron OCR, … |
+| VAD | Silero (ONNX) | — |
 
-### 🧠 Chat (LLM Text Generation)
-- On-device text generation using **SmolLM2 360M**
-- Real-time chat interface with message history
-- Powered by llama.cpp backend
+**Both catalogs ship together.** On NPU phones the app prefers an HNPU default, but every screen picker and **Model Lab** still lists the original CPU models so you can switch anytime. Non-NPU devices keep CPU-only.
 
-### 🎤 Speech to Text (STT)
-- Real-time speech recognition using **Whisper Tiny**
-- Microphone permission handling
-- Voice activity detection
-- Powered by Sherpa-ONNX backend
+## Requirements
 
-### 🔊 Text to Speech (TTS)
-- Natural voice synthesis using **Piper TTS**
-- Sample texts and custom input
-- High-quality US English voice (Lessac)
-- Powered by Sherpa-ONNX backend
+- Android Studio Hedgehog+ / JDK 17
+- minSdk 26, targetSdk 37
+- **arm64-v8a** physical device recommended (required for QHexRT)
+- Free storage for model downloads (HNPU bundles are hundreds of MB to ~2 GB)
 
-### 🎯 Voice Pipeline (Voice Agent)
-- Complete voice conversation pipeline
-- Combines STT → LLM → TTS
-- Real-time conversation flow
-- Status indicators for each stage
+## Setup
 
-## Getting Started
+```bash
+cd kotlin-starter-example
+# Ensure Android SDK path is available (local.properties or ANDROID_HOME)
+./gradlew :app:installDebug
+```
 
-### Prerequisites
+Dependencies resolve from **Maven Central** (`io.github.sanchitmonga22:runanywhere-*:0.20.11`):
 
-- **Android Studio**: Hedgehog (2023.1.1) or later
-- **Minimum SDK**: API 26 (Android 8.0)
-- **Target SDK**: API 35 (Android 15)
-- **Kotlin**: 2.0.21 or later
-- **Java**: 17
+```kotlin
+implementation("io.github.sanchitmonga22:runanywhere-sdk:0.20.11")
+implementation("io.github.sanchitmonga22:runanywhere-llamacpp:0.20.11")
+implementation("io.github.sanchitmonga22:runanywhere-onnx:0.20.11")
+implementation("io.github.sanchitmonga22:runanywhere-qhexrt-android:0.20.11")
+```
 
-### Installation
+`runanywhere-qhexrt-android` is **binary-only** (engine `.so` + QAIRT host libs + DSP skels + thin Kotlin registration API). Engine C++ source is not published.
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd starter_apps/kotlinstarterexample
-   ```
+## Bootstrap sequence
 
-2. **Open in Android Studio**
-   - Open Android Studio
-   - Select "Open an Existing Project"
-   - Navigate to the `kotlinstarterexample` folder
-   - Click "OK"
+```kotlin
+LlamaCPP.register()
+ONNX.register()
+RunAnywhere.initialize(context, SDKEnvironment.SDK_ENVIRONMENT_DEVELOPMENT)
+QHexRT.register()                 // after initialize (needs Context for skels)
+modelService.bootstrapModels()    // CPU always; HNPU rows via QHexRT.registerModelForDevice
+```
 
-3. **Sync Gradle**
-   - Android Studio will automatically sync Gradle
-   - If not, click "Sync Now" in the notification bar
+## First launch (QHexRT device)
 
-4. **Run the app**
-   - Connect an Android device or start an emulator
-   - Click the "Run" button (▶️) in Android Studio
-   - Select your device/emulator
-   - The app will build and install
+1. Open the app — home card should say **Hexagon NPU ready** with arch (e.g. `v75`) and SoC.
+2. Open **QHexRT Lab** — full curated HNPU catalog (LLM / STT / TTS / embed / vision-OCR). Tap **Load** on any row.
+3. Or open **Chat / Speech / Voice / Embeddings / Vision** and use the model dropdown to switch HNPU vs CPU backends.
+4. Optional: set `hf.token=` in `local.properties` for gated repos (e.g. Magpie TTS), then rebuild.
 
-### First Launch
-
-On the first launch:
-
-1. **Home Screen**: You'll see 4 feature cards
-2. **Load Models**: Each feature requires downloading AI models:
-   - **LLM**: ~400 MB (SmolLM2 360M)
-   - **STT**: ~75 MB (Whisper Tiny)
-   - **TTS**: ~20 MB (Piper TTS)
-3. **Grant Permissions**: STT and Voice Pipeline require microphone permission
-4. **Start Using**: Once models are loaded, all features are ready!
+CPU fallbacks remain in every picker.
 
 ## Architecture
 
-### Project Structure
-
 ```
 app/src/main/java/com/runanywhere/kotlin_starter_example/
-├── MainActivity.kt                    # App entry point
-├── services/
-│   └── ModelService.kt               # Model management (download, load, unload)
+├── MainActivity.kt                 # SDK + QHexRT bootstrap
+├── services/ModelService.kt        # Catalog, prefer-NPU selection, download/load
 └── ui/
-    ├── theme/                        # App theme and colors
-    │   ├── Theme.kt
-    │   └── Type.kt
-    ├── components/                   # Reusable UI components
-    │   ├── FeatureCard.kt
-    │   └── ModelLoaderWidget.kt
-    └── screens/                      # Feature screens
-        ├── HomeScreen.kt
-        ├── ChatScreen.kt
-        ├── SpeechToTextScreen.kt
-        ├── TextToSpeechScreen.kt
-        └── VoicePipelineScreen.kt
+    ├── components/ModelLoaderWidget.kt
+    └── screens/                    # Feature demos
 ```
-
-### Key Technologies
-
-- **Jetpack Compose**: Modern declarative UI
-- **Material 3**: Latest Material Design
-- **Navigation Compose**: Screen navigation
-- **Coroutines & Flow**: Asynchronous operations
-- **ViewModel**: State management
-- **RunAnywhere SDK v0.16.0-test.39**: On-device AI
-
-## RunAnywhere SDK Integration
-
-### Dependencies
-
-The app uses three RunAnywhere packages:
-
-```kotlin
-// build.gradle.kts (app module)
-dependencies {
-    // Core SDK
-    implementation("ai.runanywhere:runanywhere-kotlin:0.16.0-test.39")
-    
-    // Backends
-    implementation("ai.runanywhere:runanywhere-llamacpp:0.16.0-test.39")  // LLM
-    implementation("ai.runanywhere:runanywhere-onnx:0.16.0-test.39")      // STT/TTS
-}
-```
-
-### Initialization
-
-```kotlin
-// MainActivity.kt
-RunAnywhere.initialize(environment = SDKEnvironment.DEVELOPMENT)
-ModelService.registerDefaultModels()
-```
-
-### Model Registration
-
-Models are registered in `ModelService.kt`:
-
-```kotlin
-// LLM Model
-RunAnywhere.registerModel(
-    id = "smollm2-360m-instruct-q8_0",
-    name = "SmolLM2 360M Instruct Q8_0",
-    url = "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF/resolve/main/smollm2-360m-instruct-q8_0.gguf",
-    framework = InferenceFramework.LLAMA_CPP,
-    memoryRequirement = 400_000_000
-)
-
-// STT Model
-RunAnywhere.registerModel(
-    id = "sherpa-onnx-whisper-tiny.en",
-    name = "Sherpa Whisper Tiny (ONNX)",
-    url = "https://github.com/RunanywhereAI/sherpa-onnx/releases/download/runanywhere-models-v1/sherpa-onnx-whisper-tiny.en.tar.gz",
-    framework = InferenceFramework.ONNX,
-    category = ModelCategory.SPEECH_RECOGNITION
-)
-
-// TTS Model
-RunAnywhere.registerModel(
-    id = "vits-piper-en_US-lessac-medium",
-    name = "Piper TTS (US English - Medium)",
-    url = "https://github.com/RunanywhereAI/sherpa-onnx/releases/download/runanywhere-models-v1/vits-piper-en_US-lessac-medium.tar.gz",
-    framework = InferenceFramework.ONNX,
-    category = ModelCategory.SPEECH_SYNTHESIS
-)
-```
-
-### Usage Examples
-
-#### Chat (LLM)
-```kotlin
-val response = RunAnywhere.chat("Explain AI in simple terms")
-```
-
-#### Speech to Text (STT)
-```kotlin
-val audioData: ByteArray = recordAudio()
-val transcription = RunAnywhere.transcribe(audioData)
-```
-
-#### Text to Speech (TTS)
-```kotlin
-RunAnywhere.speak("Hello, world!")
-```
-
-#### Voice Pipeline
-```kotlin
-RunAnywhere.startVoiceSession().collect { event ->
-    when (event) {
-        is VoiceSessionEvent.Listening -> updateUI("Listening...")
-        is VoiceSessionEvent.Transcribed -> updateUI("You: ${event.text}")
-        is VoiceSessionEvent.Thinking -> updateUI("Thinking...")
-        is VoiceSessionEvent.Responded -> updateUI("AI: ${event.text}")
-        is VoiceSessionEvent.Speaking -> updateUI("Speaking...")
-    }
-}
-```
-
-## Performance
-
-### Model Sizes
-- **LLM (SmolLM2 360M)**: ~400 MB
-- **STT (Whisper Tiny)**: ~75 MB
-- **TTS (Piper)**: ~20 MB
-- **Total**: ~495 MB
-
-### Inference Speed
-- **LLM**: 5-15 tokens/sec (device dependent)
-- **STT**: Real-time transcription
-- **TTS**: Real-time synthesis
-
-### Device Requirements
-- **RAM**: Minimum 2GB recommended
-- **Storage**: 1GB free space for models
-- **CPU**: ARMv8 64-bit recommended (supports ARMv7)
-
-## Customization
-
-### Changing Models
-
-To use different models, update `ModelService.kt`:
-
-```kotlin
-companion object {
-    const val LLM_MODEL_ID = "your-model-id"
-    const val STT_MODEL_ID = "your-stt-model-id"
-    const val TTS_MODEL_ID = "your-tts-model-id"
-    
-    fun registerDefaultModels() {
-        RunAnywhere.registerModel(
-            id = LLM_MODEL_ID,
-            name = "Your Model Name",
-            url = "your-model-url",
-            framework = InferenceFramework.LLAMA_CPP
-        )
-        // ... register other models
-    }
-}
-```
-
-### Customizing UI
-
-All UI colors and themes are defined in:
-- `ui/theme/Theme.kt` - Color palette
-- `ui/theme/Type.kt` - Typography
 
 ## Troubleshooting
 
-### Models Not Downloading
-- Check internet connection
-- Verify URLs in `ModelService.kt`
-- Check device storage space
-
-### App Crashes on Launch
-- Ensure minimum SDK 26
-- Check Gradle sync completed successfully
-- Verify all dependencies are downloaded
-
-### Microphone Permission Denied
-- Go to Settings → Apps → RunAnywhere Kotlin → Permissions
-- Enable "Microphone" permission
-
-### Poor Performance
-- Use a device with at least 2GB RAM
-- Close other apps to free memory
-- Consider using smaller models
-
-## Privacy & Security
-
-All AI processing happens **100% on-device**:
-- ✅ No data sent to servers
-- ✅ No internet required (after model download)
-- ✅ Complete privacy
-- ✅ Works offline
+| Issue | Fix |
+|-------|-----|
+| Home stays on “Starting SDK…” | Check logcat `MainActivity` / `QHexRT` for bootstrap errors |
+| Models are CPU-only on a Snapdragon phone | Need Hexagon **V75/V79/V81**; older SoCs fall back to CPU |
+| Download fails for HNPU | Check network / Hugging Face availability; some gated repos need `RunAnywhere.setHfToken` |
+| Install fails / huge APK | Expected — QHexRT + QAIRT native libs are large; arm64-only packaging is intentional |
 
 ## Resources
 
-- [RunAnywhere SDK Documentation](https://github.com/RunanywhereAI/runanywhere-sdks)
-- [Kotlin SDK API Reference](../../sdks/sdk/runanywhere-kotlin/Documentation.md)
-- [Release Notes](https://github.com/RunanywhereAI/runanywhere-sdks/releases/tag/v0.16.0-test.39)
+- [RunAnywhere SDKs](https://github.com/RunanywhereAI/runanywhere-sdks)
+- Release: [v0.20.11](https://github.com/RunanywhereAI/runanywhere-sdks/releases/tag/v0.20.11)
 
-## License
-
-See the [LICENSE](../../LICENSE) file for details.
-
-## Support
-
-For issues and questions:
-- GitHub Issues: [runanywhere-sdks/issues](https://github.com/RunanywhereAI/runanywhere-sdks/issues)
-- Documentation: [RunAnywhere Docs](https://github.com/RunanywhereAI/runanywhere-sdks)
-
----
-
-**Built with ❤️ using RunAnywhere SDK v0.16.0-test.39**
+**Built with RunAnywhere SDK v0.20.11**

@@ -203,12 +203,14 @@ fun ToolCallingScreen(
                         .padding(16.dp)
                 ) {
                     ModelLoaderWidget(
-                        modelName = "SmolLM2 360M",
+                        modelName = modelService.llmModelName,
                         isDownloading = modelService.isLLMDownloading,
                         isLoading = modelService.isLLMLoading,
                         isLoaded = modelService.isLLMLoaded,
                         downloadProgress = modelService.llmDownloadProgress,
-                        onLoadClick = { modelService.downloadAndLoadLLM() }
+                        onLoadClick = { modelService.downloadAndLoadLLM() },
+                        backendLabel = if (modelService.llmUsesNpu) "QHexRT · Hexagon NPU" else "llama.cpp",
+                        enabled = modelService.isSdkReady,
                     )
                     
                     modelService.errorMessage?.let { error ->

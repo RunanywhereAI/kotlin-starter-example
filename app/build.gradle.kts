@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -5,6 +6,16 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
 }
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val hfTokenForBuild = (localProperties.getProperty("hf.token") ?: "")
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
 
 android {
     namespace = "com.runanywhere.kotlin_starter_example"
@@ -18,7 +29,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
+
+        // QHexRT + QAIRT ship arm64-only native slices. Keep a single ABI so
+        // Hexagon skels and librac_backend_qhexrt.so always travel together.
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
+
+        // Optional gated-HNPU downloads (see local.properties.example).
+        buildConfigField("String", "HF_TOKEN", "\"$hfTokenForBuild\"")
+
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -41,9 +61,15 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     
     packaging {
+        jniLibs {
+            // Large QAIRT / QHexRT .so files exceed the compressed-JNI limit on
+            // some devices unless they are extracted at install time.
+            useLegacyPackaging = true
+        }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
@@ -55,6 +81,14 @@ kotlin {
         jvmTarget.set(JvmTarget.JVM_17)
     }
 }
+
+// Default: Maven Central. For local QHexRT engine fixes (e.g. Kitten live-window
+// stitching), stage libs/runanywhere-qhexrt.aar then pass
+// -Prunanywhere.useLocalQhexrt=true.
+val useLocalQhexrt = providers.gradleProperty("runanywhere.useLocalQhexrt")
+    .map { it.toBoolean() }
+    .orElse(false)
+    .get()
 
 dependencies {
     // AndroidX Core
@@ -82,7 +116,16 @@ dependencies {
     implementation(libs.runanywhere.sdk)
     implementation(libs.runanywhere.llamacpp)
     implementation(libs.runanywhere.onnx)
-    implementation(libs.runanywhere.qhexrt)
+    if (useLocalQhexrt) {
+        val localQhexrt = rootProject.file("libs/runanywhere-qhexrt.aar")
+        require(localQhexrt.isFile) {
+            "Missing ${localQhexrt.path}. Build/stage the QHexRT AAR or omit " +
+                "-Prunanywhere.useLocalQhexrt."
+        }
+        implementation(files(localQhexrt))
+    } else {
+        implementation(libs.runanywhere.qhexrt)
+    }
     
     // Testing
     testImplementation(libs.junit)

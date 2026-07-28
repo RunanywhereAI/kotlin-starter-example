@@ -6,14 +6,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.runanywhere.kotlin_starter_example.BuildConfig
 import com.runanywhere.kotlin_starter_example.services.ModelService
 import com.runanywhere.kotlin_starter_example.ui.screens.ChatScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.EmbeddingsScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.HomeScreen
+import com.runanywhere.kotlin_starter_example.ui.screens.QHexRTLabScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.RagScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.SpeechToTextScreen
 import com.runanywhere.kotlin_starter_example.ui.screens.StructuredOutputScreen
@@ -28,63 +31,77 @@ import com.runanywhere.sdk.llm.llamacpp.LlamaCPP
 import com.runanywhere.sdk.npu.qhexrt.QHexRT
 import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.configuration.SDKEnvironment
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
 
-    // Backend registration is suspend (0.20.9), so bootstrap runs on its own
-    // scope rather than blocking onCreate. Backends are registered before
-    // RunAnywhere.initialize() so the plugin registry is never briefly empty
-    // for a concurrent loadModel() caller.
-    private val bootstrapScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        bootstrapScope.launch {
-            try {
-                LlamaCPP.register() // For LLM + VLM (GGUF models)
-            } catch (e: Throwable) {
-                // VLM native registration may fail if .so doesn't include nativeRegisterVlm;
-                // LLM text generation still works since it was registered before VLM in register()
-                Log.w(TAG, "LlamaCPP.register partial failure (VLM may be unavailable): ${e.message}")
-            }
-            ONNX.register() // For STT/TTS (Sherpa-ONNX models)
-
-            // Single bootstrap call: this also wires up the Android platform
-            // context (storage paths, secure storage) that the SDK needs.
-            RunAnywhere.initialize(
-                context = this@MainActivity,
-                environment = SDKEnvironment.SDK_ENVIRONMENT_DEVELOPMENT,
-            )
-
-            // QHexRT (Qualcomm Hexagon NPU). Registered after initialize() because its
-            // skel installer needs the application Context installed by RunAnywhere.initialize()
-            // above. Registration is rejected internally (no-op) on devices without a supported
-            // Hexagon NPU, so this is safe to call unconditionally.
-            QHexRT.register()
-
-            ModelService.registerDefaultModels()
-        }
-
         setContent {
             KotlinStarterTheme {
-                RunAnywhereApp()
+                RunAnywhereApp(activity = this)
             }
         }
     }
 }
 
 @Composable
-fun RunAnywhereApp() {
+fun RunAnywhereApp(activity: ComponentActivity) {
     val navController = rememberNavController()
     val modelService: ModelService = viewModel()
+
+    // Backend registration is suspend (0.20.x). Register backends before
+    // RunAnywhere.initialize() so the plugin registry is never briefly empty
+    // for a concurrent loadModel() caller. QHexRT comes after initialize()
+    // because its skel installer needs the application Context.
+    LaunchedEffect(Unit) {
+        if (modelService.isSdkReady) return@LaunchedEffect
+        // Native registration + HF catalog probes must not run on the main thread
+        // (OkHttp throws NetworkOnMainThreadException during registerModelForDevice).
+        withContext(Dispatchers.IO) {
+            try {
+                try {
+                    LlamaCPP.register() // LLM + VLM (GGUF)
+                } catch (e: Throwable) {
+                    Log.w(TAG, "LlamaCPP.register partial failure (VLM may be unavailable): ${e.message}")
+                }
+                ONNX.register() // STT/TTS/VAD/embeddings CPU path
+
+                RunAnywhere.initialize(
+                    context = activity,
+                    environment = SDKEnvironment.SDK_ENVIRONMENT_DEVELOPMENT,
+                )
+
+                // Optional HF token from local.properties → BuildConfig (gated HNPU repos).
+                val hfToken = BuildConfig.HF_TOKEN
+                if (hfToken.isNotBlank()) {
+                    RunAnywhere.setHfToken(hfToken)
+                    Log.i(TAG, "Hugging Face token applied for HNPU downloads")
+                }
+
+                // Safe on non-NPU devices — registration is a no-op when unsupported.
+                QHexRT.register()
+                modelService.bootstrapModels()
+
+                val npu = QHexRT.probeNpu()
+                Log.i(
+                    TAG,
+                    "SDK ready · npu_supported=${npu.qhexrt_supported} arch=${npu.arch_name} soc=${npu.soc_model} " +
+                        "npu_models=${modelService.registeredNpuCount} " +
+                        "llm=${modelService.llmModelId} stt=${modelService.sttModelId} " +
+                        "tts=${modelService.ttsModelId} embed=${modelService.embeddingModelId} " +
+                        "vlm=${modelService.vlmModelId}",
+                )
+            } catch (e: Throwable) {
+                Log.e(TAG, "SDK bootstrap failed", e)
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -92,6 +109,7 @@ fun RunAnywhereApp() {
     ) {
         composable("home") {
             HomeScreen(
+                modelService = modelService,
                 onNavigateToChat = { navController.navigate("chat") },
                 onNavigateToSTT = { navController.navigate("stt") },
                 onNavigateToTTS = { navController.navigate("tts") },
@@ -101,7 +119,15 @@ fun RunAnywhereApp() {
                 onNavigateToVad = { navController.navigate("vad") },
                 onNavigateToRag = { navController.navigate("rag") },
                 onNavigateToEmbeddings = { navController.navigate("embeddings") },
-                onNavigateToStructuredOutput = { navController.navigate("structured_output") }
+                onNavigateToStructuredOutput = { navController.navigate("structured_output") },
+                onNavigateToQHexRTLab = { navController.navigate("qhexrt_lab") },
+            )
+        }
+
+        composable("qhexrt_lab") {
+            QHexRTLabScreen(
+                modelService = modelService,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
 

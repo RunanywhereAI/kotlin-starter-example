@@ -92,12 +92,14 @@ fun StructuredOutputScreen(
         ) {
             if (!modelService.isLLMLoaded) {
                 ModelLoaderWidget(
-                    modelName = "SmolLM2 360M",
+                    modelName = modelService.llmModelName,
                     isDownloading = modelService.isLLMDownloading,
                     isLoading = modelService.isLLMLoading,
                     isLoaded = modelService.isLLMLoaded,
                     downloadProgress = modelService.llmDownloadProgress,
                     onLoadClick = { modelService.downloadAndLoadLLM() },
+                    backendLabel = if (modelService.llmUsesNpu) "QHexRT · Hexagon NPU" else "llama.cpp",
+                    enabled = modelService.isSdkReady,
                 )
                 Spacer(modifier = Modifier.height(20.dp))
             }
