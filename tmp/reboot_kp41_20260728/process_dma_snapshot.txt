@@ -1,5 +1,0 @@
-[51071.849186]  [ 1:  kworker/u17:2:20291] [   8848] 10429  8848  5057685    47831  2375680    24287             0 starter_example
-[51071.849687]  [ 1:  kworker/u17:2:20291] heaviest_task_rss:system_server(2830) size:573040KB, totalram_pages:6873776KB
-[51071.849705]  [ 1:  kworker/u17:2:20291] mm_debug dma_buf tasks
-[51071.854443]  [ 1:  kworker/u17:2:20291] [   8848] 10429  8848         9        40420 starter_example
-[51071.855384]  [ 1:  kworker/u17:2:20291] heaviest_task_dma_buf:binder:1706_2(1706) size:107160KB

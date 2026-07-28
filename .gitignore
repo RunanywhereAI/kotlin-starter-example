@@ -83,3 +83,6 @@ lint-baseline.xml
 app/src/main/assets/models/
 **/models/
 libs/
+
+# Local scratch / device capture / E2E artifacts (never commit)
+tmp/
