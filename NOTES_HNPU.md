@@ -1,6 +1,6 @@
-# HNPU / Kitten exploration notes (Maven QHexRT 0.20.11)
+# HNPU / Kitten exploration notes (Maven QHexRT 0.20.12)
 
-App default: **Maven Central** `runanywhere-qhexrt-android:0.20.11`  
+App default: **Maven Central** `runanywhere-qhexrt-android:0.20.12`  
 Local engine only when: `./gradlew :app:installDebug -Prunanywhere.useLocalQhexrt=true`
 
 ## Reboot root cause (confirmed 2026-07-27)
@@ -28,7 +28,7 @@ Samsung dump: `/data/log/dumpstate_lastkmsg_37_20260727_183546_KP.log.gz`
 4. Do **not** run Voice pipeline with HNPU STT+TTS+LLM together.  
 5. Soft “Unload all” is still useful for CPU models; for HNPU, hard reset is safer.
 
-## Known Kitten issues on published Maven 0.20.11
+## Known Kitten issues (historical on Maven 0.20.11; re-verify on 0.20.12)
 
 | Symptom | Likely cause | Status |
 |---|---|---|
@@ -38,12 +38,25 @@ Samsung dump: `/data/log/dumpstate_lastkmsg_37_20260727_183546_KP.log.gz`
 | “south hampton” weak | Prefer lexicon form Southampton | Local engine normalizes; Maven may not |
 | Long lines pause / choppy | No native multi-window stitch in Maven AAR | Local engine stitches; Maven does not |
 
+## Vision / VLM download note
+
+Vision used to auto-select **InternVL3.5 1B (~3.1 GB HNPU)**. On ~8GB phones the
+app RAM gate requires `model size + 1.5 GB` free, so Load often fails with a
+“needs ~3.1 GB + 1.5 GB headroom…” message (easy to misread as “more model
+support”). Prefer:
+
+- **SmolVLM 256M (CPU / llama.cpp)** — general image Q&A, ~365 MB, two GGUF files  
+- **Nemotron OCR (HNPU)** — OCR-only, ~121 MB (now preferred HNPU default)  
+- InternVL / Qwen3-VL — only with lots of free RAM + hard reset; reboot risk  
+
 ## What works well (Maven)
 
 - Kokoro-82M EN (HNPU) — longer text, better intelligibility  
 - Magpie TTS (HNPU) — when gated HF token is set  
 - Piper (CPU) — reliable fallback  
 - LFM2.5 LLM alone (after hard reset)
+- Nemotron OCR (HNPU) / SmolVLM (CPU) for vision smoke
+
 
 ## Follow-ups
 

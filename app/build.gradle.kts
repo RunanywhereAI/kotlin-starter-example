@@ -69,6 +69,9 @@ android {
             // Large QAIRT / QHexRT .so files exceed the compressed-JNI limit on
             // some devices unless they are extracted at install time.
             useLegacyPackaging = true
+            // AGP stripDebugDebugSymbols was collapsing local QHexRT builds from
+            // ~41MB → ~2MB and dropping engine symbols. Keep natives intact.
+            keepDebugSymbols += "**/*.so"
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

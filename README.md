@@ -30,13 +30,13 @@ cd kotlin-starter-example
 ./gradlew :app:installDebug
 ```
 
-Dependencies resolve from **Maven Central** (`io.github.sanchitmonga22:runanywhere-*:0.20.11`):
+Dependencies resolve from **Maven Central** (`io.github.sanchitmonga22:runanywhere-*:0.20.12`):
 
 ```kotlin
-implementation("io.github.sanchitmonga22:runanywhere-sdk:0.20.11")
-implementation("io.github.sanchitmonga22:runanywhere-llamacpp:0.20.11")
-implementation("io.github.sanchitmonga22:runanywhere-onnx:0.20.11")
-implementation("io.github.sanchitmonga22:runanywhere-qhexrt-android:0.20.11")
+implementation("io.github.sanchitmonga22:runanywhere-sdk:0.20.12")
+implementation("io.github.sanchitmonga22:runanywhere-llamacpp:0.20.12")
+implementation("io.github.sanchitmonga22:runanywhere-onnx:0.20.12")
+implementation("io.github.sanchitmonga22:runanywhere-qhexrt-android:0.20.12")
 ```
 
 `runanywhere-qhexrt-android` is **binary-only** (engine `.so` + QAIRT host libs + DSP skels + thin Kotlin registration API). Engine C++ source is not published.
@@ -83,6 +83,6 @@ app/src/main/java/com/runanywhere/kotlin_starter_example/
 ## Resources
 
 - [RunAnywhere SDKs](https://github.com/RunanywhereAI/runanywhere-sdks)
-- Release: [v0.20.11](https://github.com/RunanywhereAI/runanywhere-sdks/releases/tag/v0.20.11)
+- Release train: Maven Central `0.20.12` (Apple/SPM still TEMP-pinned to 0.20.11 binaries until XCFrameworks land)
 
-**Built with RunAnywhere SDK v0.20.11**
+**Built with RunAnywhere SDK v0.20.12**

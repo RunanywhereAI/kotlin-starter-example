@@ -12,7 +12,7 @@ composeBom = "2024.12.01"
 lifecycleViewmodelCompose = "2.8.7"
 navigationCompose = "2.8.5"
 coroutines = "1.9.0"
-runanywhere = "0.20.11"
+runanywhere = "0.20.12"
 
 [libraries]
 # RunAnywhere SDK (0.20.11 - Maven Central)

@@ -167,10 +167,16 @@ internal object NpuCatalog {
         ),
 
         // --- TTS ---
+        // Varlen L=128 Graph A (private HF). Preferred for local-engine Kitten validation.
+        NpuCatalogEntry(
+            "kitten_nano_0_8_varlen", "Kitten-nano-0.8 varlen L128 (HNPU)",
+            "https://huggingface.co/runanywhere/kitten_nano_0_8_varlen_HNPU/kitten_nano08_v81.json",
+            TTS, 45_000_000L, preferredDefault = true,
+        ),
         NpuCatalogEntry(
             "magpie_tts_357m", "Magpie-TTS Multilingual 357M (HNPU)",
             "https://huggingface.co/runanywhere/magpie_tts_357m_HNPU",
-            TTS, 749_093_186L, preferredDefault = true,
+            TTS, 749_093_186L,
         ),
         NpuCatalogEntry(
             "kitten_nano_0_8", "Kitten-nano-0.8 (HNPU)",
@@ -216,25 +222,28 @@ internal object NpuCatalog {
         ),
 
         // --- Multimodal / OCR ---
-        NpuCatalogEntry(
-            "internvl3_5_1b", "InternVL3.5 1B (HNPU)",
-            "https://huggingface.co/runanywhere/internvl3_5_1b_HNPU",
-            MULTIMODAL, 3_067_933_894L, contextLength = 512, preferredDefault = true,
-        ),
-        NpuCatalogEntry(
-            "qwen3_vl", "Qwen3-VL 2B (HNPU)",
-            "https://huggingface.co/runanywhere/qwen3_vl_HNPU/qwen3vl-2b-vlm-512.json",
-            MULTIMODAL, 3_220_398_168L, contextLength = 512,
-        ),
+        // Prefer small OCR as HNPU default: InternVL/Qwen3-VL are ~3GB and the
+        // starter RAM gate (model + 1.5GB headroom) rejects them on ~8GB phones.
         NpuCatalogEntry(
             "nemotron_ocr", "Nemotron OCR (HNPU)",
             "https://huggingface.co/runanywhere/nemotron_ocr_HNPU",
-            MULTIMODAL, 121_193_004L,
+            MULTIMODAL, 121_193_004L, preferredDefault = true,
         ),
         NpuCatalogEntry(
             "nemotron_ocr_v1", "Nemotron OCR v1 (HNPU)",
             "https://huggingface.co/runanywhere/nemotron_ocr_v1_HNPU",
             MULTIMODAL, 121_406_323L,
+        ),
+        NpuCatalogEntry(
+            "internvl3_5_1b", "InternVL3.5 1B (HNPU)",
+            "https://huggingface.co/runanywhere/internvl3_5_1b_HNPU",
+            MULTIMODAL, 3_067_933_894L, contextLength = 512,
+        ),
+        NpuCatalogEntry(
+            "qwen3_vl", "Qwen3-VL 2B (HNPU)",
+            // Repo root — registerModelForDevice resolves arch-specific json.
+            "https://huggingface.co/runanywhere/qwen3_vl_HNPU",
+            MULTIMODAL, 3_220_398_168L, contextLength = 512,
         ),
         NpuCatalogEntry(
             "nemotron_parse", "Nemotron Parse (HNPU)",

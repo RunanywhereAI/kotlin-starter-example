@@ -27,10 +27,26 @@ import com.runanywhere.sdk.public.RunAnywhere
 import com.runanywhere.sdk.public.extensions.speak
 import com.runanywhere.sdk.public.types.RATTSOptions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private fun isKittenTts(modelId: String): Boolean = modelId.startsWith("kitten_")
+
+/** Kitten E2E phrases — short + long, including the known regression cases. */
+private val KITTEN_E2E_SUITE = listOf(
+    "Hexagon neural processing unit.",
+    "The weather is sunny and warm today.",
+    "Can you hear me clearly right now?",
+    "Hello! This is a test of the text-to-speech system.",
+    "My name is a test of the text to speech system. My name is Southampton.",
+    "Artificial intelligence on Snapdragon Hexagon can run speech synthesis fully on the neural processing unit without sending audio to the cloud.",
+    "Please read this longer paragraph carefully. The Qualcomm Hexagon NPU is designed for efficient on-device inference. " +
+        "We want Kitten to speak every sentence clearly, keep punctuation pauses natural, and not fall back to any baked fixture phrase. " +
+        "If variable-length Graph A is working, even this multi-sentence block should complete in one synthesis pass on v75.",
+    "Southampton is a major port city on the south coast of England. Text to speech quality matters when product demos run on a phone. " +
+        "Load one HNPU model, speak several prompts in a row, and listen for dropped words, silence gaps, or wrong canned phrases.",
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,9 +60,12 @@ fun TextToSpeechScreen(
         mutableStateOf("Hello! This is a test of the text-to-speech system.")
     }
     var isSpeaking by remember { mutableStateOf(false) }
+    var isRunningSuite by remember { mutableStateOf(false) }
+    var suiteStatus by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     val scope = rememberCoroutineScope()
+    val busy = isSpeaking || isRunningSuite
     
     Scaffold(
         topBar = {
@@ -139,7 +158,7 @@ fun TextToSpeechScreen(
                             onValueChange = { inputText = it },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Type something...") },
-                            enabled = !isSpeaking,
+                            enabled = !busy,
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = PrimaryMid,
                                 unfocusedContainerColor = PrimaryMid,
@@ -154,8 +173,8 @@ fun TextToSpeechScreen(
                         if (kittenMode) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Kitten stitches long text in the QHexRT engine " +
-                                    "(phoneme windows ≤ Lmax, crossfaded).",
+                                text = "Varlen Kitten (Lmax=128): long text should synthesize in " +
+                                    "one pass — use the E2E suite below to stress it.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextMuted,
                             )
@@ -167,19 +186,15 @@ fun TextToSpeechScreen(
                 
                 // Speak button with animation
                 SpeakButton(
-                    isSpeaking = isSpeaking,
+                    isSpeaking = isSpeaking || isRunningSuite,
                     onClick = {
-                        if (!isSpeaking && inputText.isNotBlank()) {
+                        if (!busy && inputText.isNotBlank()) {
                             isSpeaking = true
                             scope.launch {
                                 try {
                                     withContext(Dispatchers.IO) {
-                                        // Maven QHexRT: single speak() only.
-                                        // (Local-engine WAV dump was removed — double synthesize
-                                        // spiked RAM and contributed to device reboots.)
                                         RunAnywhere.speak(inputText, RATTSOptions())
                                     }
-
                                     errorMessage = null
                                 } catch (e: Exception) {
                                     errorMessage = "TTS failed: ${e.message}"
@@ -194,10 +209,58 @@ fun TextToSpeechScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    text = if (isSpeaking) "Speaking..." else "Tap to speak",
+                    text = when {
+                        isRunningSuite -> suiteStatus ?: "Running Kitten suite…"
+                        isSpeaking -> "Speaking..."
+                        else -> "Tap to speak"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (isSpeaking) AccentPink else TextMuted
+                    color = if (busy) AccentPink else TextMuted
                 )
+
+                if (kittenMode) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Button(
+                        onClick = {
+                            if (busy) return@Button
+                            isRunningSuite = true
+                            errorMessage = null
+                            scope.launch {
+                                val total = KITTEN_E2E_SUITE.size
+                                try {
+                                    for ((index, phrase) in KITTEN_E2E_SUITE.withIndex()) {
+                                        val n = index + 1
+                                        inputText = phrase
+                                        suiteStatus = "Kitten suite $n/$total — speaking…"
+                                        withContext(Dispatchers.IO) {
+                                            RunAnywhere.speak(phrase, RATTSOptions())
+                                        }
+                                        suiteStatus = "Kitten suite $n/$total — done"
+                                        if (index < total - 1) delay(700)
+                                    }
+                                    suiteStatus = "Kitten suite complete ($total phrases)"
+                                } catch (e: Exception) {
+                                    errorMessage = "Kitten suite failed: ${e.message}"
+                                    suiteStatus = null
+                                } finally {
+                                    isRunningSuite = false
+                                }
+                            }
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Run Kitten E2E suite (${KITTEN_E2E_SUITE.size} phrases)")
+                    }
+                    suiteStatus?.let { status ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = status,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AccentGreen,
+                        )
+                    }
+                }
             }
             
             // Error message
@@ -312,12 +375,16 @@ private fun SampleTextsCard(
             )
             Spacer(modifier = Modifier.height(12.dp))
             
-            val samples = listOf(
-                "Hello! This is a test of the text-to-speech system.",
-                "The quick brown fox jumps over the lazy dog.",
-                "Artificial intelligence is transforming how we interact with technology.",
-                "Welcome to the future of on-device AI processing.",
-            )
+            val samples = if (kittenMode) {
+                KITTEN_E2E_SUITE
+            } else {
+                listOf(
+                    "Hello! This is a test of the text-to-speech system.",
+                    "The quick brown fox jumps over the lazy dog.",
+                    "Artificial intelligence is transforming how we interact with technology.",
+                    "Welcome to the future of on-device AI processing.",
+                )
+            }
             
             samples.forEach { sample ->
                 TextButton(
@@ -369,9 +436,9 @@ private fun InfoCard(kittenMode: Boolean) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = if (kittenMode) {
-                    "• Enter any text — QHexRT chunks Kitten phoneme windows and crossfades them\n" +
-                        "• Spaced place names like \"south hampton\" normalize to lexicon forms\n" +
-                        "• Melo/Kokoro remain clearer for long prose\n" +
+                    "• Use Run Kitten E2E suite for short + long phrases in a loop\n" +
+                        "• Varlen Graph A targets single-shot synthesis up to Lmax=128 phonemes\n" +
+                        "• Listen for dropped words, silence, or baked-fixture fallbacks\n" +
                         "• All processing happens on-device"
                 } else {
                     "• Enter text in the field above\n" +

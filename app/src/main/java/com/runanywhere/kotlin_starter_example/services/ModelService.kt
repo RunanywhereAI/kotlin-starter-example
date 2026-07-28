@@ -766,9 +766,13 @@ class ModelService : ViewModel() {
                 val avail = availableRamBytes()
                 if (needed > 0L && avail < needed + RAM_HEADROOM_BYTES) {
                     errorMessage =
-                        "$label '${modelId}' needs ~${formatBytes(needed)} + " +
+                        "$label '${modelId}' is too large for free RAM right now: " +
+                            "needs ~${formatBytes(needed)} model + " +
                             "${formatBytes(RAM_HEADROOM_BYTES)} headroom, but only " +
-                            "${formatBytes(avail)} is free. Unload other apps or pick a smaller model."
+                            "${formatBytes(avail)} is free. " +
+                            "This is not a missing-backend issue — pick a smaller model " +
+                            "(e.g. SmolVLM CPU or Nemotron OCR), Hard-reset HNPU, " +
+                            "or free memory and retry."
                     Log.w(TAG, errorMessage!!)
                     setLoading(false)
                     return
