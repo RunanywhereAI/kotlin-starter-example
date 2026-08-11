@@ -80,12 +80,7 @@ implementation(libs.runanywhere.qhexrt)    // io.github.sanchitmonga22:runanywhe
 | `runanywhere-sdk` | Core SDK + commons native libraries | ✅ |
 | `runanywhere-llamacpp` | LlamaCPP backend (LLM, VLM) | ✅ |
 | `runanywhere-onnx` | Sherpa-ONNX backend (STT, TTS, VAD) | ✅ |
-| `runanywhere-qhexrt-android` | QHexRT backend (Qualcomm Hexagon NPU) | ⏳ publishing in flight |
-
-> **Known-red build:** `runanywhere-qhexrt-android:0.20.15` has not landed on Maven
-> Central yet, so `:app:assembleDebug` currently fails with
-> `Could not find io.github.sanchitmonga22:runanywhere-qhexrt-android:0.20.15`.
-> The other three resolve fine. This is a publishing gap, not a code problem.
+| `runanywhere-qhexrt-android` | QHexRT backend (Qualcomm Hexagon NPU) | ✅ |
 
 All four are published together; never mix versions. To move to a new SDK release, bump `runanywhere` in `gradle/libs.versions.toml`, then regenerate the dependency lock and verification metadata:
 
@@ -112,9 +107,14 @@ spelled out inline in the workflow:
 | `gradle/verification-metadata.xml` (`--dependency-verification=off`) | Generated when the SDK arrived as local, POM-less AARs — it contains **zero** `io.github.sanchitmonga22` components, so every SDK artifact fails checksum verification | `./gradlew --write-verification-metadata sha256 :app:assembleDebug`, commit, drop the flag |
 | `app/gradle.lockfile` (`env -u CI`, dropping `LockMode.STRICT` back to `LENIENT`) | Same staleness — no `io.github.sanchitmonga22` entries, so strict locking rejects the resolved graph | `./gradlew :app:dependencies --write-locks`, commit, drop `env -u CI` |
 
-Neither file can be regenerated until `runanywhere-qhexrt-android:0.20.15`
-publishes, because regenerating them requires resolving the complete graph.
-`./scripts/verify.sh` still runs the strict gate locally.
+Regenerating both is now **unblocked** (it needed the full graph to resolve, which
+needed `runanywhere-qhexrt-android:0.20.15` — that landed on 2026-08-11). One
+caveat when you do it: generate the verification metadata on **Linux**, or on both
+Linux and macOS, because some build-time artifacts are OS-classified
+(`com.android.tools.build:aapt2:…:linux` vs `:osx`) and metadata written only on a
+Mac will fail the Linux CI runner.
+
+`./scripts/verify.sh` still runs the strict verification gate locally.
 
 ---
 

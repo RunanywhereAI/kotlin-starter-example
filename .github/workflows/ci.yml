@@ -4,14 +4,9 @@ name: CI
 # and no local AARs — resolves the RunAnywhere Kotlin SDK and its backend engines
 # from Maven Central (group io.github.sanchitmonga22) and assembles a debug APK.
 #
-# CURRENTLY EXPECTED TO FAIL — waiting on an unpublished artifact:
-#   io.github.sanchitmonga22:runanywhere-qhexrt-android:0.20.15
-# is not on Maven Central yet (the other three — runanywhere-sdk,
-# runanywhere-llamacpp, runanywhere-onnx — are live at 0.20.15). `app/build.gradle.kts`
-# declares it via `libs.runanywhere.qhexrt`, so :app:assembleDebug fails with
-# "Could not find io.github.sanchitmonga22:runanywhere-qhexrt-android:0.20.15"
-# until it publishes. This job is deliberately left blocking and red rather than
-# faked green with continue-on-error: the red IS the accurate status.
+# STATUS: green. All four SDK artifacts are live on Maven Central at 0.20.15 —
+# runanywhere-sdk, runanywhere-llamacpp, runanywhere-onnx and (as of
+# 2026-08-11) runanywhere-qhexrt-android, which was the last one in flight.
 
 on:
   push:
@@ -80,13 +75,17 @@ jobs:
       #      (There is no -P override: the build script ORs the CI check ahead of
       #      the runanywhere.strictLocks property.)
       #
-      # TO RETIRE BOTH BYPASSES once 0.20.15 is complete on Maven Central:
+      # TO RETIRE BOTH BYPASSES (now unblocked — the full graph resolves since
+      # runanywhere-qhexrt-android:0.20.15 landed):
       #      ./gradlew :app:dependencies --write-locks
       #      ./gradlew --write-verification-metadata sha256 :app:assembleDebug
       #   commit the refreshed gradle/verification-metadata.xml +
       #   app/gradle.lockfile, then delete `env -u CI` and
       #   `--dependency-verification=off` from the line below so CI enforces both
       #   gates again (that is what scripts/verify.sh does locally).
+      #   Generate the verification metadata on Linux (or on Linux *and* macOS):
+      #   OS-classified artifacts such as com.android.tools.build:aapt2:…:linux
+      #   vs :osx differ per host, and Mac-only metadata fails this runner.
       # ----------------------------------------------------------------------
       - name: Assemble debug APK
         run: >
