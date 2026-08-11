@@ -38,8 +38,8 @@ No NDK, CMake, or native toolchain is required — the SDK ships prebuilt native
 ### 1. Clone and open the example
 
 ```bash
-git clone https://github.com/RunanywhereAI/runanywhere-sdks.git
-cd runanywhere-sdks/examples/android/RunAnywhereAI
+git clone https://github.com/RunanywhereAI/runanywhere-android.git
+cd runanywhere-android
 ```
 
 ### 2. Point Gradle at your Android SDK
@@ -62,14 +62,30 @@ Or open the project in Android Studio and run the **app** configuration, or inst
 
 ## SDK dependency
 
-All SDK artifacts come from Maven Central under the group `io.github.sanchitmonga22`, pinned by the single `runanywhere` version in `gradle/libs.versions.toml`:
+All SDK artifacts come from Maven Central under the group `io.github.sanchitmonga22`, pinned by the single `runanywhere` version in `gradle/libs.versions.toml` (currently **0.20.15**). Nothing is declared as a local AAR or project path:
 
-| Coordinate | Role |
-|---|---|
-| `runanywhere-sdk` | Core SDK + commons native libraries |
-| `runanywhere-llamacpp` | LlamaCPP backend (LLM, VLM) |
-| `runanywhere-onnx` | Sherpa-ONNX backend (STT, TTS, VAD) |
-| `runanywhere-qhexrt-android` | QHexRT backend (Qualcomm Hexagon NPU) |
+```kotlin
+// gradle/libs.versions.toml
+runanywhere = "0.20.15"
+
+// app/build.gradle.kts
+implementation(libs.runanywhere.sdk)       // io.github.sanchitmonga22:runanywhere-sdk
+implementation(libs.runanywhere.llamacpp)  // io.github.sanchitmonga22:runanywhere-llamacpp
+implementation(libs.runanywhere.onnx)      // io.github.sanchitmonga22:runanywhere-onnx
+implementation(libs.runanywhere.qhexrt)    // io.github.sanchitmonga22:runanywhere-qhexrt-android
+```
+
+| Coordinate | Role | On Maven Central at 0.20.15 |
+|---|---|---|
+| `runanywhere-sdk` | Core SDK + commons native libraries | ✅ |
+| `runanywhere-llamacpp` | LlamaCPP backend (LLM, VLM) | ✅ |
+| `runanywhere-onnx` | Sherpa-ONNX backend (STT, TTS, VAD) | ✅ |
+| `runanywhere-qhexrt-android` | QHexRT backend (Qualcomm Hexagon NPU) | ⏳ publishing in flight |
+
+> **Known-red build:** `runanywhere-qhexrt-android:0.20.15` has not landed on Maven
+> Central yet, so `:app:assembleDebug` currently fails with
+> `Could not find io.github.sanchitmonga22:runanywhere-qhexrt-android:0.20.15`.
+> The other three resolve fine. This is a publishing gap, not a code problem.
 
 All four are published together; never mix versions. To move to a new SDK release, bump `runanywhere` in `gradle/libs.versions.toml`, then regenerate the dependency lock and verification metadata:
 
@@ -77,6 +93,28 @@ All four are published together; never mix versions. To move to a new SDK releas
 ./gradlew :app:dependencies --write-locks
 ./gradlew --write-verification-metadata sha256 :app:assembleDebug
 ```
+
+---
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
+`ubuntu-latest`, Temurin JDK 17 (plus JDK 21 for the Gradle daemon, which
+`gradle/gradle-daemon-jvm.properties` pins), the Android SDK via
+`android-actions/setup-android` (`platforms;android-37.0`, `build-tools;37.0.0`),
+Gradle caching via `gradle/actions/setup-gradle`, then `./gradlew :app:assembleDebug`.
+
+Two reproducibility gates are **temporarily disabled in CI**, with the reasons
+spelled out inline in the workflow:
+
+| Gate | Why it is off | How to turn it back on |
+|---|---|---|
+| `gradle/verification-metadata.xml` (`--dependency-verification=off`) | Generated when the SDK arrived as local, POM-less AARs — it contains **zero** `io.github.sanchitmonga22` components, so every SDK artifact fails checksum verification | `./gradlew --write-verification-metadata sha256 :app:assembleDebug`, commit, drop the flag |
+| `app/gradle.lockfile` (`env -u CI`, dropping `LockMode.STRICT` back to `LENIENT`) | Same staleness — no `io.github.sanchitmonga22` entries, so strict locking rejects the resolved graph | `./gradlew :app:dependencies --write-locks`, commit, drop `env -u CI` |
+
+Neither file can be regenerated until `runanywhere-qhexrt-android:0.20.15`
+publishes, because regenerating them requires resolving the complete graph.
+`./scripts/verify.sh` still runs the strict gate locally.
 
 ---
 
