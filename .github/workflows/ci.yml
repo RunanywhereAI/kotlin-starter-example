@@ -2,11 +2,13 @@ name: CI
 
 # What this gate proves: a clean clone of THIS repo — with no monorepo checkout
 # and no local AARs — resolves the RunAnywhere Kotlin SDK and its backend engines
-# from Maven Central (group io.github.sanchitmonga22) and assembles a debug APK.
+# from Maven Central (group io.github.sanchitmonga22) and assembles a debug APK,
+# under the SAME command a developer runs: no bypass flags, both reproducibility
+# gates (dependency verification + strict dependency locking) enforced.
 #
-# STATUS: green. All four SDK artifacts are live on Maven Central at 0.20.15 —
-# runanywhere-sdk, runanywhere-llamacpp, runanywhere-onnx and (as of
-# 2026-08-11) runanywhere-qhexrt-android, which was the last one in flight.
+# STATUS: green. All four SDK artifacts are live on Maven Central at 0.20.17 —
+# runanywhere-sdk, runanywhere-llamacpp, runanywhere-onnx and
+# runanywhere-qhexrt-android.
 
 on:
   push:
@@ -53,44 +55,26 @@ jobs:
       - name: Set up Gradle (with dependency + build caching)
         uses: gradle/actions/setup-gradle@v6
 
-      # ----------------------------------------------------------------------
-      # Two repo-side reproducibility gates are bypassed here ON PURPOSE. Both
-      # are STALE: they were generated back when the SDK was consumed as local,
-      # POM-less AARs, so neither one contains a single io.github.sanchitmonga22
-      # entry, and both hard-fail the moment Gradle resolves the SDK from Maven
-      # Central. Neither can be regenerated today, because regenerating them
-      # requires resolving the full dependency graph — including the still
-      # unpublished runanywhere-qhexrt-android artifact.
+      # Plain, unmodified build — exactly what `./gradlew :app:assembleDebug`,
+      # `./scripts/verify.sh` and Android Studio's Run button do locally. Both
+      # repo-side reproducibility gates are LIVE here:
       #
-      #   1. --dependency-verification=off
-      #      gradle/verification-metadata.xml (3911 lines, 0 SDK components)
-      #      would otherwise fail every SDK artifact with
-      #      "not in dependency verification metadata".
+      #   1. gradle/verification-metadata.xml — Gradle auto-enables dependency
+      #      verification because the file exists, and it now carries sha256
+      #      entries for the io.github.sanchitmonga22 artifacts plus the
+      #      OS-classified com.android.tools.build:aapt2 :linux *and* :osx jars,
+      #      so the same file satisfies this runner and a macOS developer.
       #
-      #   2. env -u CI
-      #      app/build.gradle.kts flips dependency locking to LockMode.STRICT
-      #      whenever $CI is set. app/gradle.lockfile (374 lines, 0 SDK entries)
-      #      would then fail with "resolved ... which is not part of the lock
-      #      state". Unsetting CI for this one command restores LockMode.LENIENT.
-      #      (There is no -P override: the build script ORs the CI check ahead of
-      #      the runanywhere.strictLocks property.)
+      #   2. app/gradle.lockfile — $CI is set on GitHub Actions, which flips
+      #      app/build.gradle.kts to LockMode.STRICT. The lockfile pins the full
+      #      resolved graph including the four SDK artifacts.
       #
-      # TO RETIRE BOTH BYPASSES (now unblocked — the full graph resolves since
-      # runanywhere-qhexrt-android:0.20.15 landed):
-      #      ./gradlew :app:dependencies --write-locks
-      #      ./gradlew --write-verification-metadata sha256 :app:assembleDebug
-      #   commit the refreshed gradle/verification-metadata.xml +
-      #   app/gradle.lockfile, then delete `env -u CI` and
-      #   `--dependency-verification=off` from the line below so CI enforces both
-      #   gates again (that is what scripts/verify.sh does locally).
-      #   Generate the verification metadata on Linux (or on Linux *and* macOS):
-      #   OS-classified artifacts such as com.android.tools.build:aapt2:…:linux
-      #   vs :osx differ per host, and Mac-only metadata fails this runner.
-      # ----------------------------------------------------------------------
+      # After bumping the `runanywhere` version in gradle/libs.versions.toml,
+      # regenerate both (see README "SDK dependency") or this job will fail —
+      # that failure is the gate working, not a reason to add a bypass flag.
       - name: Assemble debug APK
         run: >
-          env -u CI ./gradlew :app:assembleDebug
-          --dependency-verification=off
+          ./gradlew :app:assembleDebug
           --no-daemon
           --stacktrace
 

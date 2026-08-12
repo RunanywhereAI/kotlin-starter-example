@@ -1,6 +1,8 @@
 # Android RunAnywhereAI example
 
-This file applies to `examples/android/RunAnywhereAI/`. Run commands from this directory unless noted otherwise.
+This file applies to this repository (`RunanywhereAI/runanywhere-android`) — a standalone
+clone of the Android example that consumes the RunAnywhere SDK from Maven Central. Run
+commands from the repository root unless noted otherwise.
 
 ## Common commands
 
@@ -26,10 +28,16 @@ local AARs and no relative paths into any SDK source tree. Coordinates live in
 | `io.github.sanchitmonga22:runanywhere-qhexrt-android` | QHexRT backend (Qualcomm Hexagon NPU) |
 
 All four are published together; never mix versions. To move to a new SDK release,
-bump `runanywhere` in `gradle/libs.versions.toml`, then regenerate
-`app/gradle.lockfile` (`./gradlew :app:dependencies --write-locks`) and
-`gradle/verification-metadata.xml`
-(`./gradlew --write-verification-metadata sha256 :app:assembleDebug`).
+bump `runanywhere` in `gradle/libs.versions.toml`, then regenerate both
+reproducibility files — see the README's "SDK dependency" section for the exact
+procedure and its two traps: regenerate the checksums against a throwaway
+`GRADLE_USER_HOME` (a warm cache silently omits parent POMs and BOM metadata), and
+keep both the `-linux.jar` and `-osx.jar` `com.android.tools.build:aapt2` entries so
+the one committed file satisfies CI and macOS developers alike.
+
+Dependency verification and strict dependency locking are enforced in CI with no
+bypass flags. If a bump breaks them, regenerate the files; never re-add
+`--dependency-verification=off` or `env -u CI` to `.github/workflows/ci.yml`.
 
 The published POMs supply the SDK's own transitive dependencies (wire-runtime,
 okhttp, coroutines-core, okio, kotlin-stdlib, kotlinx-serialization-json,

@@ -62,11 +62,11 @@ Or open the project in Android Studio and run the **app** configuration, or inst
 
 ## SDK dependency
 
-All SDK artifacts come from Maven Central under the group `io.github.sanchitmonga22`, pinned by the single `runanywhere` version in `gradle/libs.versions.toml` (currently **0.20.15**). Nothing is declared as a local AAR or project path:
+All SDK artifacts come from Maven Central under the group `io.github.sanchitmonga22`, pinned by the single `runanywhere` version in `gradle/libs.versions.toml` (currently **0.20.17**). Nothing is declared as a local AAR or project path:
 
 ```kotlin
 // gradle/libs.versions.toml
-runanywhere = "0.20.15"
+runanywhere = "0.20.17"
 
 // app/build.gradle.kts
 implementation(libs.runanywhere.sdk)       // io.github.sanchitmonga22:runanywhere-sdk
@@ -75,18 +75,47 @@ implementation(libs.runanywhere.onnx)      // io.github.sanchitmonga22:runanywhe
 implementation(libs.runanywhere.qhexrt)    // io.github.sanchitmonga22:runanywhere-qhexrt-android
 ```
 
-| Coordinate | Role | On Maven Central at 0.20.15 |
+| Coordinate | Role | On Maven Central at 0.20.17 |
 |---|---|---|
 | `runanywhere-sdk` | Core SDK + commons native libraries | ✅ |
 | `runanywhere-llamacpp` | LlamaCPP backend (LLM, VLM) | ✅ |
 | `runanywhere-onnx` | Sherpa-ONNX backend (STT, TTS, VAD) | ✅ |
 | `runanywhere-qhexrt-android` | QHexRT backend (Qualcomm Hexagon NPU) | ✅ |
 
-All four are published together; never mix versions. To move to a new SDK release, bump `runanywhere` in `gradle/libs.versions.toml`, then regenerate the dependency lock and verification metadata:
+All four are published together; never mix versions. To move to a new SDK release, bump `runanywhere` in `gradle/libs.versions.toml`, then regenerate the two reproducibility files that pin the resolved graph — `app/gradle.lockfile` and `gradle/verification-metadata.xml`:
 
 ```bash
+# 1. Dependency lock. Host-independent, so any OS will do.
 ./gradlew :app:dependencies --write-locks
-./gradlew --write-verification-metadata sha256 :app:assembleDebug
+
+# 2. Checksums. Gradle *merges* into the existing file — it adds entries and never
+#    removes them — so run this on top of the committed file rather than deleting it.
+GRADLE_USER_HOME="$(mktemp -d)" ./gradlew --write-verification-metadata sha256 \
+    :app:assembleDebug :app:testDebugUnitTest :app:lintRelease
+```
+
+Two traps make this file easy to get subtly wrong; both were hit while writing the
+current one:
+
+- **Use a throwaway `GRADLE_USER_HOME`.** Checksums are only recorded for artifacts
+  Gradle actually *downloads* during the run. Against a warm `~/.gradle` the run looks
+  successful but silently omits things already cached — in practice a handful of parent
+  POMs and BOM metadata (`guava-parent`, `junit-bom`, `kotlin-gradle-plugins-bom`). The
+  gap is invisible until someone builds from a genuinely cold cache, i.e. CI.
+- **Cover Linux *and* macOS.** A few build-time artifacts are OS-classified
+  (`com.android.tools.build:aapt2:…-linux.jar` vs `…-osx.jar`) and Gradle records only
+  the host's. The committed file carries both, so one file satisfies the Linux CI runner
+  and a macOS developer. Because step 2 merges, the way to keep both is to run it on
+  Linux (Docker is fine), commit that file, then run it again on macOS on top. If you can
+  only reach one OS, hand-add the missing `<artifact>` line to the
+  `com.android.tools.build:aapt2` component — a Linux-only file breaks every macOS
+  developer, and a macOS-only file breaks CI.
+
+Then confirm the result the same way CI will, with no bypass flags:
+
+```bash
+./gradlew :app:assembleDebug          # dependency verification live
+CI=true ./gradlew :app:assembleDebug  # + LockMode.STRICT
 ```
 
 ---
@@ -99,22 +128,18 @@ All four are published together; never mix versions. To move to a new SDK releas
 `android-actions/setup-android` (`platforms;android-37.0`, `build-tools;37.0.0`),
 Gradle caching via `gradle/actions/setup-gradle`, then `./gradlew :app:assembleDebug`.
 
-Two reproducibility gates are **temporarily disabled in CI**, with the reasons
-spelled out inline in the workflow:
+CI runs the **unmodified** command — no bypass flags — so it exercises exactly the
+path a developer does. Both reproducibility gates are enforced there and locally:
 
-| Gate | Why it is off | How to turn it back on |
+| Gate | What enforces it | What it pins |
 |---|---|---|
-| `gradle/verification-metadata.xml` (`--dependency-verification=off`) | Generated when the SDK arrived as local, POM-less AARs — it contains **zero** `io.github.sanchitmonga22` components, so every SDK artifact fails checksum verification | `./gradlew --write-verification-metadata sha256 :app:assembleDebug`, commit, drop the flag |
-| `app/gradle.lockfile` (`env -u CI`, dropping `LockMode.STRICT` back to `LENIENT`) | Same staleness — no `io.github.sanchitmonga22` entries, so strict locking rejects the resolved graph | `./gradlew :app:dependencies --write-locks`, commit, drop `env -u CI` |
+| `gradle/verification-metadata.xml` | Auto-enabled by Gradle whenever the file exists; `./scripts/verify.sh` additionally passes `--dependency-verification strict` | sha256 of every resolved artifact, including the four `io.github.sanchitmonga22` AARs and both OS variants of `aapt2` |
+| `app/gradle.lockfile` | `app/build.gradle.kts` flips to `LockMode.STRICT` when `$CI` is set (or with `-Prunanywhere.strictLocks=true`); `LENIENT` otherwise so Android Studio sync stays friction-free | the exact resolved version of every module on every configuration |
 
-Regenerating both is now **unblocked** (it needed the full graph to resolve, which
-needed `runanywhere-qhexrt-android:0.20.15` — that landed on 2026-08-11). One
-caveat when you do it: generate the verification metadata on **Linux**, or on both
-Linux and macOS, because some build-time artifacts are OS-classified
-(`com.android.tools.build:aapt2:…:linux` vs `:osx`) and metadata written only on a
-Mac will fail the Linux CI runner.
-
-`./scripts/verify.sh` still runs the strict verification gate locally.
+Both files are committed and current. If a dependency or SDK bump makes either gate
+fail, regenerate them (see [SDK dependency](#sdk-dependency)) — do **not** add
+`--dependency-verification=off` or `env -u CI` to the workflow, because that hides the
+breakage from CI while every clean clone keeps failing.
 
 ---
 
@@ -176,8 +201,8 @@ The app resolves every SDK artifact from Maven Central — it contains no local 
 | Symptom | Fix |
 |---------|-----|
 | `Could not find io.github.sanchitmonga22:runanywhere-*` | Check the `runanywhere` version in `gradle/libs.versions.toml` is actually published to Maven Central, and that `mavenCentral()` is reachable |
-| Gradle dependency verification failures | Regenerate metadata: `./gradlew --write-verification-metadata sha256 :app:assembleDebug` |
-| Dependency lock mismatch after a version bump | Regenerate the lock: `./gradlew :app:dependencies --write-locks` |
+| Gradle dependency verification failures (`N artifacts failed verification`) | Regenerate `gradle/verification-metadata.xml` — follow [SDK dependency](#sdk-dependency) step 2 exactly, including the throwaway `GRADLE_USER_HOME` and the Linux + macOS passes |
+| `... is not part of the dependency lock state` (usually only with `CI=true`) | Regenerate the lock: `./gradlew :app:dependencies --write-locks` |
 | QHexRT / NPU models unavailable | Confirm the device has a supported Hexagon NPU; HNPU bundles also require a saved HF token |
 
 For a quick static check without a full compile:
