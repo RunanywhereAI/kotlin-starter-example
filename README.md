@@ -118,6 +118,37 @@ Then confirm the result the same way CI will, with no bypass flags:
 CI=true ./gradlew :app:assembleDebug  # + LockMode.STRICT
 ```
 
+### Testing an unreleased SDK build (developer-only)
+
+To try a change from a [`runanywhere-sdks`](https://github.com/RunanywhereAI/runanywhere-sdks)
+checkout before it is on Maven Central, publish it to `~/.m2` and point this repo at it:
+
+```bash
+# In the monorepo — publishes io.github.sanchitmonga22:*:<core/VERSION>
+(cd path/to/runanywhere-sdks/bindings/kotlin && ./gradlew publishToMavenLocal)
+
+# Here — opt in per invocation, and relax verification for that one run
+./gradlew :app:assembleDebug \
+    -Prunanywhere.useLocalSdkAars=true \
+    --dependency-verification=lenient
+```
+
+`-Prunanywhere.useLocalSdkAars=true` adds `mavenLocal()` ahead of Google and Maven
+Central, scoped by `content { includeGroup("io.github.sanchitmonga22") }` so a stale
+`~/.m2` copy of any *other* dependency cannot shadow the verified one.
+
+`--dependency-verification=lenient` is **required** alongside it, and is not a bypass
+being smuggled in. A locally published AAR has the same coordinates as the released one
+but different bytes, so it can never match the sha256 in `gradle/verification-metadata.xml`.
+Without the flag the build stops with `artifacts failed verification`, which is the gate
+working correctly. Relax it per invocation like this; do **not** add a
+`<trust group="io.github.sanchitmonga22"/>` entry to the committed metadata, because that
+would permanently un-pin the four artifacts the gate exists to pin.
+
+Both flags are per-invocation only. Never commit `runanywhere.useLocalSdkAars` to
+`gradle.properties` and never set it in CI: `ci.yml` exists to prove a clean clone
+resolves the SDK from Maven Central, and a local AAR would make that proof vacuous.
+
 ---
 
 ## Continuous integration
