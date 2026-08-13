@@ -6,7 +6,7 @@ name: CI
 # under the SAME command a developer runs: no bypass flags, both reproducibility
 # gates (dependency verification + strict dependency locking) enforced.
 #
-# STATUS: green. All four SDK artifacts are live on Maven Central at 0.20.17 —
+# STATUS: green. All four SDK artifacts are live on Maven Central at 0.20.18 —
 # runanywhere-sdk, runanywhere-llamacpp, runanywhere-onnx and
 # runanywhere-qhexrt-android.
 

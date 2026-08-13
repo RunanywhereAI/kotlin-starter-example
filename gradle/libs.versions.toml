@@ -11,7 +11,7 @@ kotlin = "2.4.0"
 # RunAnywhere SDK — consumed entirely from Maven Central
 # (group io.github.sanchitmonga22). One version drives the core SDK and every
 # backend module; they are published together and must never be mixed.
-runanywhere = "0.20.17"
+runanywhere = "0.20.18"
 
 # AndroidX core
 coreKtx = "1.19.0"

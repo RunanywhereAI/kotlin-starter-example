@@ -62,11 +62,11 @@ Or open the project in Android Studio and run the **app** configuration, or inst
 
 ## SDK dependency
 
-All SDK artifacts come from Maven Central under the group `io.github.sanchitmonga22`, pinned by the single `runanywhere` version in `gradle/libs.versions.toml` (currently **0.20.17**). Nothing is declared as a local AAR or project path:
+All SDK artifacts come from Maven Central under the group `io.github.sanchitmonga22`, pinned by the single `runanywhere` version in `gradle/libs.versions.toml` (currently **0.20.18**). Nothing is declared as a local AAR or project path:
 
 ```kotlin
 // gradle/libs.versions.toml
-runanywhere = "0.20.17"
+runanywhere = "0.20.18"
 
 // app/build.gradle.kts
 implementation(libs.runanywhere.sdk)       // io.github.sanchitmonga22:runanywhere-sdk
@@ -75,7 +75,7 @@ implementation(libs.runanywhere.onnx)      // io.github.sanchitmonga22:runanywhe
 implementation(libs.runanywhere.qhexrt)    // io.github.sanchitmonga22:runanywhere-qhexrt-android
 ```
 
-| Coordinate | Role | On Maven Central at 0.20.17 |
+| Coordinate | Role | On Maven Central at 0.20.18 |
 |---|---|---|
 | `runanywhere-sdk` | Core SDK + commons native libraries | ✅ |
 | `runanywhere-llamacpp` | LlamaCPP backend (LLM, VLM) | ✅ |
