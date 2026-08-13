@@ -2,6 +2,7 @@ package com.runanywhere.runanywhereai
 
 import ai.runanywhere.proto.v1.InferenceFramework
 import ai.runanywhere.proto.v1.ModelCategory
+import ai.runanywhere.proto.v1.ModelFileRole
 import ai.runanywhere.proto.v1.ModelInfo
 import ai.runanywhere.proto.v1.ModelSource
 import com.runanywhere.runanywhereai.data.ModelCatalog
@@ -159,6 +160,7 @@ class ModelCatalogTest {
         assertEquals(1_024, byId.getValue("qwen3_5_2b").contextLength)
         assertEquals(1_024, byId.getValue("qwen3_5_4b").contextLength)
         assertEquals(512, byId.getValue("internvl3_5_1b").contextLength)
+        assertEquals(512, byId.getValue("lfm2_5_vl_3b").contextLength)
     }
 
     @Test
@@ -219,6 +221,59 @@ class ModelCatalogTest {
         listOf("lfm2-350m-q8_0", "lfm2-1.2b-tool-q8_0", "lfm2.5-2.6b-q8_0").forEach { id ->
             assertFalse("removed Q8_0 sibling $id came back", byId.containsKey(id))
         }
+    }
+
+    /**
+     * The llama.cpp LFM2.5-VL 3B row is a VLM, so it is only usable if BOTH the
+     * weights and the separately published mmproj vision projector are declared —
+     * with just the weights it loads text-only and fails silently on image input.
+     *
+     * Its per-file `sizeBytes` are exact (verified by HTTP Content-Range against
+     * the pinned revision) and feed both the post-download size guard and the
+     * progress bar's denominator, so the revision pin, the two sizes and their sum
+     * are asserted rather than left to drift against `main`.
+     */
+    @Test
+    fun lfm25Vl3bShipsWeightsAndMmprojAtExactPinnedSizes() {
+        val model =
+            ModelCatalog.models.single { it.id == "lfm2.5-vl-3b-q4_k_m" } as MultiFileModel
+
+        assertEquals(InferenceFramework.INFERENCE_FRAMEWORK_LLAMA_CPP, model.framework)
+        assertEquals(ModelCategory.MODEL_CATEGORY_MULTIMODAL, model.category)
+        assertEquals(3L * 1_024L * 1_024L * 1_024L, model.memoryBytes)
+        assertEquals(2_257_563_360L, model.downloadBytes)
+        assertEquals(model.downloadBytes, model.files.sumOf { it.sizeBytes ?: 0 })
+
+        val pin =
+            "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/" +
+                "3e0e828198e2abb75a957ad823f5d691c13f0f28"
+
+        val descriptors = model.descriptors()
+        assertEquals(2, descriptors.size)
+
+        val weights = descriptors.first()
+        assertEquals("LFM2.5-VL-3B-Q4_K_M.gguf", weights.filename)
+        assertEquals("$pin/LFM2.5-VL-3B-Q4_K_M.gguf", weights.url)
+        assertEquals(1_674_454_240L, weights.size_bytes)
+        assertEquals(ModelFileRole.MODEL_FILE_ROLE_PRIMARY_MODEL, weights.role)
+
+        val mmproj = descriptors.last()
+        assertEquals("mmproj-LFM2.5-VL-3B-Q8_0.gguf", mmproj.filename)
+        assertEquals("$pin/mmproj-LFM2.5-VL-3B-Q8_0.gguf", mmproj.url)
+        assertEquals(583_109_120L, mmproj.size_bytes)
+        assertEquals(ModelFileRole.MODEL_FILE_ROLE_COMPANION, mmproj.role)
+
+        // Distinct from the QHexRT/HNPU bundle of the same model — different
+        // framework, different artifact, different id. Not a duplicate.
+        assertTrue(ModelCatalog.npuCatalog.any { it.id == "lfm2_5_vl_3b" })
+
+        // MLX is Apple-silicon only; there is no MLX engine on Android, so the
+        // LiquidAI/LFM2.5-VL-3B-MLX-4bit repo must never be referenced by any row.
+        assertFalse(
+            "LFM2.5-VL-3B MLX has no Android runtime and must not be registered",
+            ModelCatalog.models.filterIsInstance<MultiFileModel>()
+                .any { row -> row.files.any { it.url.contains("MLX", ignoreCase = true) } },
+        )
     }
 
     @Test

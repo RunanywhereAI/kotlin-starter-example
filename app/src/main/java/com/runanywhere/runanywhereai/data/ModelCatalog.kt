@@ -143,6 +143,7 @@ internal object ModelCatalog {
         SingleFileModel("cosmos3_edge_vlm", "Cosmos3-Edge Vision (HNPU)", "https://huggingface.co/runanywhere/cosmos3_edge_HNPU/cosmos3-edge-vlm.json", QHEXRT, MULTIMODAL, 3505000000L, contextLength = 2_048),
         // InternVL3.5
         SingleFileModel("internvl3_5_1b", "InternVL3.5 1B (HNPU)", "https://huggingface.co/runanywhere/internvl3_5_1b_HNPU", QHEXRT, MULTIMODAL, 3_067_933_894L, contextLength = 512),
+        SingleFileModel("lfm2_5_vl_3b", "LFM2.5-VL 3B (HNPU)", "https://huggingface.co/runanywhere/lfm2_5_vl_3b_HNPU/lfm2-5-vl-3b.json", QHEXRT, MULTIMODAL, 4_168_394_864L, contextLength = 512),
 
         // --- QHexRT / HNPU: Embeddings ----------------------------------------
         // Gemma
@@ -515,7 +516,7 @@ internal object ModelCatalog {
                 ),
             ),
         ),
-        // LFM2-VL (Liquid AI)
+        // LFM2-VL / LFM2.5-VL (Liquid AI)
         MultiFileModel(
             "lfm2-vl-450m-q8_0", "LFM2-VL 450M", LLAMA, MULTIMODAL, 600_000_000,
             files = listOf(
@@ -529,6 +530,51 @@ internal object ModelCatalog {
                 ),
             ),
         ),
+        // Q4_K_M, matching the Qwen2.5-VL 3B row beside it and the LFM2.5 2.6B LLM
+        // row this VLM is built on: one quantization per model, and Q4_K_M is what
+        // every other 3B-class GGUF row in this catalog ships. The mmproj is Q8_0
+        // because the vision tower is quantization-sensitive; that is the same
+        // Q4_K_M-weights + Q8_0-mmproj pairing the Qwen2-VL, Qwen2.5-VL and Gemma 4
+        // E4B rows use, and the only mmproj quant LiquidAI publishes below F16.
+        //
+        // Pinned to a revision rather than `main` because the per-file sizeBytes
+        // below are exact (verified by Content-Range against this sha, 1_674_454_240
+        // + 583_109_120): declared bytes feed the post-download size guard and the
+        // progress bar's denominator, so a silent upstream re-upload would break
+        // both. Every row in this file that declares exact sizes pins its sha.
+        //
+        // DISTINCT from the `lfm2_5_vl_3b` QHEXRT row in npuCatalog: different
+        // framework, different artifact. Not a duplicate; do not merge them.
+        //
+        // memoryBytes is RAM, not transfer: 2.26 GB of weights plus KV cache and
+        // the image-encoder activations, so it is stated separately from the exact
+        // downloadBytes rather than defaulting to it.
+        MultiFileModel(
+            "lfm2.5-vl-3b-q4_k_m",
+            "LFM2.5-VL 3B Q4_K_M",
+            LLAMA,
+            MULTIMODAL,
+            memoryBytes = 3L * 1_024L * 1_024L * 1_024L,
+            downloadBytes = 2_257_563_360L,
+            files = listOf(
+                ModelFile(
+                    "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/" +
+                        "3e0e828198e2abb75a957ad823f5d691c13f0f28/LFM2.5-VL-3B-Q4_K_M.gguf",
+                    "LFM2.5-VL-3B-Q4_K_M.gguf",
+                    1_674_454_240,
+                ),
+                ModelFile(
+                    "https://huggingface.co/LiquidAI/LFM2.5-VL-3B-GGUF/resolve/" +
+                        "3e0e828198e2abb75a957ad823f5d691c13f0f28/mmproj-LFM2.5-VL-3B-Q8_0.gguf",
+                    "mmproj-LFM2.5-VL-3B-Q8_0.gguf",
+                    583_109_120,
+                ),
+            ),
+        ),
+        // NOTE: LFM2.5-VL-3B-MLX-4bit is intentionally NOT registered. MLX is an
+        // Apple-silicon runtime; there is no MLX engine on Android (see the
+        // Ternary-Bonsai note in `llm` above, and HuggingFaceHubClient's GGUF-only
+        // search sets). The GGUF row above is the runnable variant on this platform.
         // Gemma
         MultiFileModel(
             "gemma-4-e2b-it-q8_0", "Gemma 4 E2B IT Q8_0 (Experimental)", LLAMA, MULTIMODAL, 3_000_000_000,
