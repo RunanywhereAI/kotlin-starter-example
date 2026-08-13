@@ -159,6 +159,7 @@ class ModelCatalogTest {
         assertEquals(1_024, byId.getValue("qwen3_5_2b").contextLength)
         assertEquals(1_024, byId.getValue("qwen3_5_4b").contextLength)
         assertEquals(512, byId.getValue("internvl3_5_1b").contextLength)
+        assertEquals(512, byId.getValue("lfm2_5_vl_3b").contextLength)
     }
 
     @Test

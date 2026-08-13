@@ -143,6 +143,7 @@ internal object ModelCatalog {
         SingleFileModel("cosmos3_edge_vlm", "Cosmos3-Edge Vision (HNPU)", "https://huggingface.co/runanywhere/cosmos3_edge_HNPU/cosmos3-edge-vlm.json", QHEXRT, MULTIMODAL, 3505000000L, contextLength = 2_048),
         // InternVL3.5
         SingleFileModel("internvl3_5_1b", "InternVL3.5 1B (HNPU)", "https://huggingface.co/runanywhere/internvl3_5_1b_HNPU", QHEXRT, MULTIMODAL, 3_067_933_894L, contextLength = 512),
+        SingleFileModel("lfm2_5_vl_3b", "LFM2.5-VL 3B (HNPU)", "https://huggingface.co/runanywhere/lfm2_5_vl_3b_HNPU/lfm2-5-vl-3b.json", QHEXRT, MULTIMODAL, 4_168_394_864L, contextLength = 512),
 
         // --- QHexRT / HNPU: Embeddings ----------------------------------------
         // Gemma

@@ -16,7 +16,13 @@ plugins {
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    val useLocalSdkAars = settings.providers.gradleProperty("runanywhere.useLocalSdkAars")
+        .map { it.toBoolean() }
+        .orElse(false)
+        .get()
     repositories {
+        // Plane B / local SDK bring-up: consume publishToMavenLocal AARs ahead of Maven Central.
+        if (useLocalSdkAars) mavenLocal()
         google()
         mavenCentral()
     }
