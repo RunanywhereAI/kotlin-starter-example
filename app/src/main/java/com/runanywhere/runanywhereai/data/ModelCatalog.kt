@@ -277,6 +277,28 @@ internal object ModelCatalog {
             620_000_000,
             supportsThinking = true
         ),
+        // Qwen3.6 — MoE (35B total / 3B active), agentic-coding-focused release.
+        // Unsloth's dynamic UD-Q4_K_M quant, ~22.1 GB — heavy/desktop-scale; kept for
+        // completeness like the other multi-GB rows in this file.
+        SingleFileModel(
+            "qwen3.6-35b-a3b-ud-q4_k_m",
+            "Qwen3.6 35B-A3B UD-Q4_K_M (heavy)",
+            "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            22_134_528_992,
+            supportsThinking = true
+        ),
+        // Qwen3.8 — dense, brand-new Qwen release. ~17.1 GB — heavy/desktop-scale.
+        SingleFileModel(
+            "qwen3.8-27b-q4_k_m",
+            "Qwen3.8 27B Q4_K_M (heavy)",
+            "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            17_106_775_008,
+            supportsThinking = true
+        ),
         // LFM2 / LFM2.5 (Liquid AI)
         // LFM2.5-230M on the CPU. Q4_K_M, not the fractionally smaller Q4_0
         // (Q4_0 is 149 MB, Q4_K_M 153 MB): 4 MB buys K-quant mixed precision on the
@@ -350,6 +372,70 @@ internal object ModelCatalog {
             LLAMA,
             LANGUAGE,
             4_000_000_000
+        ),
+        // Gemma
+        // Gemma 4 license: Google's Gemma Terms of Use (https://ai.google.dev/gemma/terms),
+        // not Apache — same license family as the gemma3n/gemma4 QHexRT rows in npuCatalog
+        // above and the gemma-4-e2b/e4b-it VLM rows below.
+        SingleFileModel(
+            "gemma-4-e2b-it-q4_k_m",
+            "Gemma 4 E2B IT Q4_K_M",
+            "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            3_106_738_272
+        ),
+        // Text-only Q4_K_M build from unsloth (no mmproj / vision tower). The id carries an
+        // "-unsloth" tag so it does not collide with the vlm section's "gemma-4-e4b-it-q4_k_m"
+        // row below: same quant name, but a different upstream repo (ggml-org) paired with a
+        // vision projector — that row can see images, this text-only row cannot.
+        SingleFileModel(
+            "gemma-4-e4b-it-unsloth-q4_k_m",
+            "Gemma 4 E4B IT Q4_K_M",
+            "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            4_977_171_584
+        ),
+        SingleFileModel(
+            "gemma-4-12b-it-q4_k_m",
+            "Gemma 4 12B IT Q4_K_M",
+            "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            7_121_861_440
+        ),
+        // MoE (26B total / 4B active). Unsloth's dynamic UD-Q4_K_XL quant, ~17.0 GB —
+        // heavy/desktop-scale; listed for completeness like the other multi-GB rows in
+        // this file, filtered per device by the app's own hardware-tier/recommendation logic.
+        SingleFileModel(
+            "gemma-4-26b-a4b-it-ud-q4_k_xl",
+            "Gemma 4 26B-A4B IT UD-Q4_K_XL (MoE, heavy)",
+            "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf",
+            LLAMA,
+            LANGUAGE,
+            17_010_980_576
+        ),
+        // Largest dense Gemma 4 (31B). TWO quants are deliberately kept here — an explicit
+        // exception to the "one quantization per model" rule noted above the LFM2.5-230M row
+        // — because the standard 4-bit build alone (~18.3 GB) is desktop-scale, so the smaller
+        // 2-bit UD-Q2_K_XL build (~11.8 GB) is also carried as the more plausible on-device
+        // option. Both rows are heavy/desktop-scale downloads.
+        SingleFileModel(
+            "gemma-4-31b-it-q4_k_m",
+            "Gemma 4 31B IT Q4_K_M (heavy)",
+            "https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/gemma-4-31B-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            18_323_733_440
+        ),
+        SingleFileModel(
+            "gemma-4-31b-it-ud-q2_k_xl",
+            "Gemma 4 31B IT UD-Q2_K_XL (heavy)",
+            "https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/gemma-4-31B-it-UD-Q2_K_XL.gguf",
+            LLAMA,
+            LANGUAGE,
+            11_774_991_296
         ),
         // Nemotron (NVIDIA)
         // Exact P0 NVIDIA checkpoint. The pinned llama.cpp fork has native
