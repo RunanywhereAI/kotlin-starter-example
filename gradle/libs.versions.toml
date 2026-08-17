@@ -9,9 +9,20 @@ agp = "9.2.1"
 kotlin = "2.4.0"
 
 # RunAnywhere SDK — consumed entirely from Maven Central
-# (group io.github.sanchitmonga22). One version drives the core SDK and every
-# backend module; they are published together and must never be mixed.
-runanywhere = "0.20.19"
+# (group io.github.sanchitmonga22). EXPERIMENTAL SPLIT (2026-08-17): the public
+# trio (sdk/llamacpp/onnx) is now published at 0.20.24, but
+# runanywhere-qhexrt-android was permanently excluded from the public Maven
+# train after 0.20.19 (release.yml hard-fails the SDK release if any qhexrt
+# artifact appears in the public asset set) and can never move forward on
+# Maven Central again. This split DIRECTLY CONTRADICTS this repo's own stated
+# policy ("The four move in lockstep; never mix versions across them" —
+# README.md "SDK dependency" section) and is NOT meant to be merged as-is —
+# it exists to give a real, evidence-backed answer to "does a mixed pin even
+# work" (RAC_PLUGIN_API_VERSION is 9u unchanged in both versions) so a human
+# can decide how to actually resolve the conflict (e.g. formally revise this
+# policy, or find another distribution channel for QHexRT going forward).
+runanywhere = "0.20.24"
+runanywhereQhexrt = "0.20.19"
 
 # AndroidX core
 coreKtx = "1.19.0"
@@ -50,7 +61,7 @@ camerax = "1.4.2"
 runanywhere-sdk = { group = "io.github.sanchitmonga22", name = "runanywhere-sdk", version.ref = "runanywhere" }
 runanywhere-llamacpp = { group = "io.github.sanchitmonga22", name = "runanywhere-llamacpp", version.ref = "runanywhere" }
 runanywhere-onnx = { group = "io.github.sanchitmonga22", name = "runanywhere-onnx", version.ref = "runanywhere" }
-runanywhere-qhexrt = { group = "io.github.sanchitmonga22", name = "runanywhere-qhexrt-android", version.ref = "runanywhere" }
+runanywhere-qhexrt = { group = "io.github.sanchitmonga22", name = "runanywhere-qhexrt-android", version.ref = "runanywhereQhexrt" }
 
 # AndroidX core / lifecycle / activity
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
