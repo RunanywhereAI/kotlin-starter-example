@@ -22,3 +22,10 @@ app/src/androidTest/assets/npu_suites/
 
 # Native libs come from staged SDK AARs (QHexRT/LlamaCPP/ONNX). Do not vendor QAIRT here.
 app/src/main/jniLibs/
+
+# Claude / cross-agent tooling. `.claude/skills/` (if present) is the canonical, human-edited
+# skill tree; `.agents/skills/` is a generated mirror for non-Claude tooling (e.g. Codex), kept
+# local/ignored for now pending a decision on what is safe to publish from this public repo.
+# See scripts/sync-skills.sh.
+.claude/*
+.agents/*
