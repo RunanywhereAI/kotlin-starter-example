@@ -8,6 +8,23 @@ The app resolves every SDK artifact from Maven Central. There is no monorepo che
 no local AAR, and no native toolchain in the loop: a clean clone builds as soon as
 Gradle can reach the network.
 
+## Screenshots
+
+Captured on a physical arm64 device running LFM2 350M, quantised Q4_K_M, through the
+llama.cpp backend.
+
+| | |
+|---|---|
+| ![Chat with a model loaded](docs/screenshots/01-home.png) | ![An answer](docs/screenshots/02-chat.png) |
+| The header names the loaded model and shows it is local and ready. The chips below are one-tap prompts. | An answer generated on the device. |
+| ![Talk](docs/screenshots/04-voice.png) | ![Documents](docs/screenshots/06-documents.png) |
+| Talk picks a speech-to-text, chat, text-to-speech, and voice-detection model for the hardware, and loads all four together. | Document Q&A, with reranking and multi-query expansion as separate switches. |
+| ![The Advanced hub](docs/screenshots/08-advanced.png) | ![Settings](docs/screenshots/07-settings.png) |
+| Everything past chat lives here: OCR, segmentation, image generation, diarization, transcription, benchmarks. | Sampling, response length, the system prompt, and streaming. |
+
+The remaining captures, including the landscape layout, are in
+[`docs/screenshots/`](docs/screenshots).
+
 ## Requirements
 
 | Item | Minimum |
