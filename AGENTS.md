@@ -73,6 +73,29 @@ emulator development still works with CPU backends.
 upload signing, an HTTPS control-plane URL, and the upload certificate SHA-256 against
 `UPLOAD_CERT_SHA256`. `bundleRelease` also depends on `generateReleaseSbom`.
 
+## Production release requirements
+
+A production build needs a real org-scoped API key and backend base URL — the same pair
+used by `runanywhere-ios`'s `RunAnywhereLocalSecrets.plist`, `runanywhere-electron`'s
+`.env`, and `runanywhere-web`'s Vercel production env. Set them in the gitignored
+`local.properties` as `runanywhere.apiKey` / `runanywhere.baseUrl`; ask a maintainer for
+current production credentials. Never hardcode them in any committed file.
+
+A production build must resolve the SDK only from Maven Central — never with
+`-Prunanywhere.useLocalSdkAars=true`, which is for local monorepo iteration only and must
+never be used for a release artifact. Before testing a "production" build, confirm no
+local Gradle property or env var is forcing the local-AAR path.
+
+Emulator/CI passing is not sufficient. Smoke-test on real hardware: install the built APK
+on a connected physical device (`adb devices`, `adb install -r ...` or
+`./gradlew :app:installDebug`) and confirm cold start, model-catalog population, and at
+least one real model load/inference — ideally one exercising the QHexRT/Hexagon NPU
+backend, since that is this app's differentiator and cannot be validated on x86 emulators.
+
+A signed release AAB additionally needs the real Play upload keystore
+(`KEYSTORE_PATH`/`KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD` env vars, never committed
+or written to `local.properties`) and must pass `verifyPlayRelease`'s upload-cert check.
+
 ## Scripts
 
 | Script | Purpose and normal use |
