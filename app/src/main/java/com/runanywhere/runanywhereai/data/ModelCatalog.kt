@@ -277,6 +277,28 @@ internal object ModelCatalog {
             620_000_000,
             supportsThinking = true
         ),
+        // Qwen3.6 — MoE (35B total / 3B active), agentic-coding-focused release.
+        // Unsloth's dynamic UD-Q4_K_M quant, ~22.1 GB — heavy/desktop-scale; kept for
+        // completeness like the other multi-GB rows in this file.
+        SingleFileModel(
+            "qwen3.6-35b-a3b-ud-q4_k_m",
+            "Qwen3.6 35B-A3B UD-Q4_K_M (heavy)",
+            "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            22_134_528_992,
+            supportsThinking = true
+        ),
+        // Qwen3.8 — dense, brand-new Qwen release. ~17.1 GB — heavy/desktop-scale.
+        SingleFileModel(
+            "qwen3.8-27b-q4_k_m",
+            "Qwen3.8 27B Q4_K_M (heavy)",
+            "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            17_106_775_008,
+            supportsThinking = true
+        ),
         // LFM2 / LFM2.5 (Liquid AI)
         // LFM2.5-230M on the CPU. Q4_K_M, not the fractionally smaller Q4_0
         // (Q4_0 is 149 MB, Q4_K_M 153 MB): 4 MB buys K-quant mixed precision on the
@@ -350,6 +372,98 @@ internal object ModelCatalog {
             LLAMA,
             LANGUAGE,
             4_000_000_000
+        ),
+        // Gemma
+        // Gemma 4 license: Google's Gemma Terms of Use (https://ai.google.dev/gemma/terms),
+        // not Apache — same license family as the gemma3n/gemma4 QHexRT rows in npuCatalog
+        // above and the gemma-4-e2b/e4b-it VLM rows below.
+        SingleFileModel(
+            "gemma-4-e2b-it-q4_k_m",
+            "Gemma 4 E2B IT Q4_K_M",
+            "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            3_106_738_272
+        ),
+        // Text-only Q4_K_M build from unsloth (no mmproj / vision tower). The id carries an
+        // "-unsloth" tag so it does not collide with the vlm section's "gemma-4-e4b-it-q4_k_m"
+        // row below: same quant name, but a different upstream repo (ggml-org) paired with a
+        // vision projector — that row can see images, this text-only row cannot.
+        SingleFileModel(
+            "gemma-4-e4b-it-unsloth-q4_k_m",
+            "Gemma 4 E4B IT Q4_K_M",
+            "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            4_977_171_584
+        ),
+        SingleFileModel(
+            "gemma-4-12b-it-q4_k_m",
+            "Gemma 4 12B IT Q4_K_M",
+            "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            7_121_861_440
+        ),
+        // MoE (26B total / 4B active). Unsloth's dynamic UD-Q4_K_XL quant, ~17.0 GB —
+        // heavy/desktop-scale; listed for completeness like the other multi-GB rows in
+        // this file, filtered per device by the app's own hardware-tier/recommendation logic.
+        SingleFileModel(
+            "gemma-4-26b-a4b-it-ud-q4_k_xl",
+            "Gemma 4 26B-A4B IT UD-Q4_K_XL (MoE, heavy)",
+            "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf",
+            LLAMA,
+            LANGUAGE,
+            17_010_980_576
+        ),
+        // Largest dense Gemma 4 (31B). TWO quants are deliberately kept here — an explicit
+        // exception to the "one quantization per model" rule noted above the LFM2.5-230M row
+        // — because the standard 4-bit build alone (~18.3 GB) is desktop-scale, so the smaller
+        // 2-bit UD-Q2_K_XL build (~11.8 GB) is also carried as the more plausible on-device
+        // option. Both rows are heavy/desktop-scale downloads.
+        SingleFileModel(
+            "gemma-4-31b-it-q4_k_m",
+            "Gemma 4 31B IT Q4_K_M (heavy)",
+            "https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/gemma-4-31B-it-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            18_323_733_440
+        ),
+        SingleFileModel(
+            "gemma-4-31b-it-ud-q2_k_xl",
+            "Gemma 4 31B IT UD-Q2_K_XL (heavy)",
+            "https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/gemma-4-31B-it-UD-Q2_K_XL.gguf",
+            LLAMA,
+            LANGUAGE,
+            11_774_991_296
+        ),
+        // Granite (IBM)
+        // Apache 2.0 (verified via HF cardData.license). Dense, three sizes.
+        SingleFileModel(
+            "granite-4.1-3b-q4_k_m",
+            "IBM Granite 4.1 3B Q4_K_M",
+            "https://huggingface.co/unsloth/granite-4.1-3b-GGUF/resolve/main/granite-4.1-3b-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            2_099_502_400
+        ),
+        SingleFileModel(
+            "granite-4.1-8b-q4_k_m",
+            "IBM Granite 4.1 8B Q4_K_M",
+            "https://huggingface.co/unsloth/granite-4.1-8b-GGUF/resolve/main/granite-4.1-8b-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            5_347_915_136
+        ),
+        // Desktop-scale (~17.5 GB) — flagged (heavy), same convention as the Gemma 4 26B/31B
+        // rows above.
+        SingleFileModel(
+            "granite-4.1-30b-q4_k_m",
+            "IBM Granite 4.1 30B Q4_K_M (heavy)",
+            "https://huggingface.co/unsloth/granite-4.1-30b-GGUF/resolve/main/granite-4.1-30b-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            17_490_241_472
         ),
         // Nemotron (NVIDIA)
         // Exact P0 NVIDIA checkpoint. The pinned llama.cpp fork has native
@@ -602,6 +716,59 @@ internal object ModelCatalog {
                 ),
             ),
         ),
+        // Meta (Muse Glimmer) — everything-else-alphabetically, after the named families above.
+        // Meta Superintelligence Labs, Apache 2.0, released 2026-08-10. Genuinely VLM-capable
+        // (real mmproj vision projector). unsloth's top-tier dynamic 4-bit build — no plain
+        // Q4_K_M exists and the model card gives no separate recommendation. Desktop-scale
+        // (~17.9 GB combined) — flagged (heavy), same convention as the Gemma 4 rows above.
+        MultiFileModel(
+            "muse-glimmer-30b-ud-q4_k_xl",
+            "Meta Muse Glimmer 30B UD-Q4_K_XL (heavy)",
+            LLAMA,
+            MULTIMODAL,
+            memoryBytes = 18L * 1_024L * 1_024L * 1_024L,
+            downloadBytes = 17_929_907_456L,
+            files = listOf(
+                ModelFile(
+                    "https://huggingface.co/unsloth/Muse-Glimmer-30B-GGUF/resolve/main/Muse-Glimmer-30B-UD-Q4_K_XL.gguf",
+                    "Muse-Glimmer-30B-UD-Q4_K_XL.gguf",
+                    15_878_222_368L,
+                ),
+                ModelFile(
+                    "https://huggingface.co/unsloth/Muse-Glimmer-30B-GGUF/resolve/main/mmproj-Muse-Glimmer-30B-Q8_0.gguf",
+                    "mmproj-Muse-Glimmer-30B-Q8_0.gguf",
+                    2_051_685_088L,
+                ),
+            ),
+        ),
+        // NVIDIA (Nemotron) — everything-else-alphabetically, after Meta above.
+        // MoE (31B total / 3B active). NVIDIA Open Model License — same license family as the
+        // nemotron_nano_vl_8b / nemotron_ocr / nemotron_parse QHexRT rows in npuCatalog above.
+        // Upstream markets this checkpoint as "Omni" (image + audio + video), but llama.cpp's
+        // mmproj here is an IMAGE-ONLY vision projector, so only the vision+text path is
+        // exposed through this row — audio/video input is NOT usable through llama.cpp on
+        // Android. Name and comments intentionally avoid claiming full omni capability.
+        // Desktop-scale (~25.5 GB combined) — flagged (heavy).
+        MultiFileModel(
+            "nemotron-3-nano-30b-a3b-reasoning-vision-ud-q4_k_m",
+            "NVIDIA Nemotron-3 Nano 30B-A3B Reasoning (Vision) UD-Q4_K_M (heavy)",
+            LLAMA,
+            MULTIMODAL,
+            memoryBytes = 26L * 1_024L * 1_024L * 1_024L,
+            downloadBytes = 25_474_563_776L,
+            files = listOf(
+                ModelFile(
+                    "https://huggingface.co/unsloth/NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-GGUF/resolve/main/NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-UD-Q4_K_M.gguf",
+                    "NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-UD-Q4_K_M.gguf",
+                    23_887_023_552L,
+                ),
+                ModelFile(
+                    "https://huggingface.co/unsloth/NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-GGUF/resolve/main/mmproj-F16.gguf",
+                    "mmproj-F16.gguf",
+                    1_587_540_224L,
+                ),
+            ),
+        ),
         // Fara (Computer-Use Agent) — `cuaProfile` is carried through
         // ModelRegistration.multiFile so RunAnywhere.CUA has a drivable model.
         MultiFileModel(
@@ -772,6 +939,76 @@ internal object ModelCatalog {
             TAR_GZ,
             ArchiveStructure.ARCHIVE_STRUCTURE_NESTED_DIRECTORY
         ),
+        // Supertone (Supertonic TTS)
+        // Supertone/supertonic-3 (released 2026-05-18) ships fp32 ONNX weights plus
+        // voice_styles/*.json + unicode_indexer.json — sherpa-onnx's Supertonic provider
+        // (OfflineTtsSupertonicModelConfig) does not load those directly: it expects
+        // INT8-quantized *.int8.onnx weights plus a converted voice.bin / unicode_indexer.bin
+        // (see sherpa-onnx's scripts/supertonic/run.sh stage 4). This row instead points at
+        // csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11, the official pre-converted
+        // export named in sherpa-onnx's own Java/C++ examples — the only Supertonic 3 bundle
+        // this app can actually load, and the same "pre-converted HF mirror" convention the
+        // sherpa-nemo-* STT rows above already use. Pinned to its exact commit because the
+        // per-file sizes below are exact.
+        // sherpa-onnx added Supertonic 3 support in v1.13.2 (2026-05-13, PR #3605/#3609). The
+        // vendored runanywhere-onnx AAR (SDK 0.20.19) pins Android sherpa-onnx to the v1.13.2
+        // tag commit exactly (13d0ae6c539d2809d32f5eaa3ef1db0c459d0b24, confirmed against both
+        // this app's own dependencies/versions.json mirror in the SDK repo and the upstream
+        // k2-fsa/sherpa-onnx v1.13.2 git tag) — the earliest SDK release that can run it, and
+        // the one this app already depends on.
+        MultiFileModel(
+            "sherpa-supertonic-3-tts-int8",
+            "Supertonic 3 TTS INT8 (Sherpa-ONNX)",
+            SHERPA,
+            ModelCategory.MODEL_CATEGORY_SPEECH_SYNTHESIS,
+            downloadBytes = 145_295_768,
+            memoryBytes = 145_295_768,
+            files = listOf(
+                ModelFile(
+                    "https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11/resolve/cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4/duration_predictor.int8.onnx",
+                    "duration_predictor.int8.onnx",
+                    3_700_147,
+                ),
+                ModelFile(
+                    "https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11/resolve/cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4/text_encoder.int8.onnx",
+                    "text_encoder.int8.onnx",
+                    36_416_150,
+                ),
+                ModelFile(
+                    "https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11/resolve/cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4/vector_estimator.int8.onnx",
+                    "vector_estimator.int8.onnx",
+                    78_400_833,
+                ),
+                ModelFile(
+                    "https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11/resolve/cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4/vocoder.int8.onnx",
+                    "vocoder.int8.onnx",
+                    25_991_073,
+                ),
+                ModelFile(
+                    "https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11/resolve/cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4/tts.json",
+                    "tts.json",
+                    8_253,
+                ),
+                ModelFile(
+                    "https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11/resolve/cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4/unicode_indexer.bin",
+                    "unicode_indexer.bin",
+                    262_144,
+                ),
+                ModelFile(
+                    "https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11/resolve/cca5a0e6c96e1d2c720986bf7e75fcc81dee3ae4/voice.bin",
+                    "voice.bin",
+                    517_168,
+                ),
+            ),
+        ),
+        // NOTE: NVIDIA Nemotron-3.5-ASR-Streaming 0.6B (onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4)
+        // is intentionally NOT registered. Multilingual Nemotron-3.5 streaming ASR support landed
+        // across sherpa-onnx v1.13.3-v1.13.5 (PRs #3671, #3732/#3734/#3741/#3785 — the last of
+        // which is a decoding correctness fix for exactly this NeMo streaming-transducer format,
+        // released 2026-08-11). The vendored runanywhere-onnx AAR pins Android sherpa-onnx to the
+        // v1.13.2 tag commit (13d0ae6c539d2809d32f5eaa3ef1db0c459d0b24) — one release before this
+        // model's format is supported at all, and three before its decoding fix. Re-enable once
+        // the SDK bumps its vendored sherpa-onnx past v1.13.5.
     )
 
     private val misc = listOf(
