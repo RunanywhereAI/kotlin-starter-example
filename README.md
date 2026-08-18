@@ -1,14 +1,37 @@
-# RunAnywhere AI, Android example
+# RunAnywhere AI for Android
 
-An Android app built on the RunAnywhere Kotlin SDK. It runs chat, voice, vision, and
-document Q&A on-device, and exposes the SDK's other primitives (TTS, STT, VAD, OCR,
-segmentation, diarization, image generation, benchmarks) through an Advanced hub.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/RunanywhereAI/runanywhere-sdks/main/docs/logo.svg" alt="RunAnywhere" width="120"/>
+</p>
 
-The app resolves every SDK artifact from Maven Central. There is no monorepo checkout,
-no local AAR, and no native toolchain in the loop: a clean clone builds as soon as
-Gradle can reach the network.
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.runanywhere.runanywhereai">
+    <img src="https://img.shields.io/badge/Google%20Play-Download-414141?style=for-the-badge&logo=google-play&logoColor=white" alt="Get it on Google Play" />
+  </a>
+</p>
 
-## Screenshots
+<p align="center">
+  <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 7.0+" />
+  <img src="https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin 2.4" />
+  <img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
+  <img src="https://img.shields.io/badge/NPU-Snapdragon-C41230?style=flat-square&logo=qualcomm&logoColor=white" alt="Snapdragon NPU" />
+  <img src="https://img.shields.io/badge/License-RunAnywhere-blue?style=flat-square" alt="RunAnywhere License" />
+</p>
+
+The RunAnywhere consumer app for Android, written in Kotlin.
+
+Ask it questions, talk to it, or show it what your camera sees. The models run on your phone,
+so nothing you type or photograph leaves it, and it works with the network off. On Snapdragon
+hardware the inference runs on the Hexagon NPU.
+
+## Get it
+
+**[Google Play](https://play.google.com/store/apps/details?id=com.runanywhere.runanywhereai)**. Android 7.0 or newer, ARM64.
+
+<!-- Media slot: one GIF showing chat with tool calling, the voice assistant, and camera
+     vision. Waiting on the capture pass that follows the current app bug fixes. -->
+
+## What it looks like
 
 Captured on a physical arm64 device running LFM2 350M, quantised Q4_K_M, through the
 llama.cpp backend.
@@ -22,276 +45,92 @@ llama.cpp backend.
 | ![The Advanced hub](docs/screenshots/08-advanced.png) | ![Settings](docs/screenshots/07-settings.png) |
 | Everything past chat lives here: OCR, segmentation, image generation, diarization, transcription, benchmarks. | Sampling, response length, the system prompt, and streaming. |
 
-The remaining captures, including the landscape layout, are in
-[`docs/screenshots/`](docs/screenshots).
+The rest, including the landscape layout, are in [`docs/screenshots/`](docs/screenshots).
 
-## Requirements
+## What you can do
 
-| Item | Minimum |
-|------|---------|
-| Android Studio | A release that supports AGP 9.2 and Gradle 9.6 |
-| Android SDK | API 24 (Android 7.0); compile and target SDK 37 |
-| JDK | 17 for the build, plus 21 for the Gradle daemon (see below) |
-| Disk space | Several GB, for downloaded models |
-| Device | arm64 physical device recommended; the debug variant also builds x86_64 for emulators |
+| | |
+| --- | --- |
+| **Ask** | Streaming chat with thinking mode, tool calling, and per-response analytics |
+| **Talk** | Hands-free voice assistant: it listens, transcribes, thinks, and speaks back |
+| **Images and live** | Ask about a photo, or about what the camera sees right now |
+| **Documents** | Add documents and ask questions, with sources cited |
+| **Advanced** | OCR, segmentation, diarization, image generation, read aloud, transcription, voice activity, tools, benchmarks |
 
-Two JDKs, because they serve different things. The app compiles against Java 17
-(`compileOptions` in `app/build.gradle.kts`), while `gradle/gradle-daemon-jvm.properties`
-pins `toolchainVersion=21` for the Gradle daemon itself. If no local JDK 21 is present,
-Gradle provisions one over the network on every run.
+Models download from a curated catalog through a sheet you can reach from any screen that
+needs one. Cloud providers exist but are opt-in and off by default.
 
-No NDK, CMake, or native toolchain is required. The SDK ships prebuilt native libraries
-inside its published AARs.
+## Snapdragon NPU
 
-## Setup
+On supported Qualcomm Hexagon hardware the app registers the QHexRT backend and inference
+runs on the NPU. Registration is rejected internally on parts outside the validated V75,
+V79, and V81 set, and the backend is ARM64 only, so it is unavailable on x86_64 emulators.
 
-Clone the repo:
+Private `runanywhere/*_HNPU` model bundles need a Hugging Face token: Settings, then Private
+Downloads, paste the token, save. It is held in protected app storage, re-applied on each
+start, and never written to source, assets, or logs.
+
+## Build it yourself
 
 ```bash
 git clone https://github.com/RunanywhereAI/runanywhere-android.git
 cd runanywhere-android
-```
-
-Point Gradle at your Android SDK: export `ANDROID_HOME`, or copy
-`local.properties.example` to `local.properties` and set `sdk.dir`.
-
-Then build:
-
-```bash
-./scripts/verify.sh
-```
-
-Or open the project in Android Studio and run the `app` configuration, or install from
-the command line:
-
-```bash
 ./gradlew :app:installDebug
 ```
 
-The app runs without a control plane. `RUNANYWHERE_BASE_URL` and `RUNANYWHERE_API_KEY`
-are optional (settable via environment or `local.properties`); with both blank the SDK
-initializes in its development environment. `app/build.gradle.kts` fails the
-configuration phase if exactly one of the two is set.
+You need Android Studio (latest stable), JDK 17, and a few GB of disk for models. No NDK,
+CMake, or native toolchain: the SDK ships prebuilt native libraries inside its published
+AARs. An ARM64 physical device is strongly preferred, since the NPU backend does not exist
+on emulators.
 
-## SDK dependency
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) covers the SDK pinning rules, dependency
+verification, testing an unreleased SDK build, CI, and troubleshooting.
 
-All SDK artifacts come from Maven Central under the group `io.github.sanchitmonga22`,
-pinned by the single `runanywhere` version in `gradle/libs.versions.toml` (currently
-0.20.19). Nothing is declared as a local AAR or project path:
+## Architecture
 
-```kotlin
-// gradle/libs.versions.toml
-runanywhere = "0.20.19"
-
-// app/build.gradle.kts
-implementation(libs.runanywhere.sdk)       // io.github.sanchitmonga22:runanywhere-sdk
-implementation(libs.runanywhere.llamacpp)  // io.github.sanchitmonga22:runanywhere-llamacpp
-implementation(libs.runanywhere.onnx)      // io.github.sanchitmonga22:runanywhere-onnx
-implementation(libs.runanywhere.qhexrt)    // io.github.sanchitmonga22:runanywhere-qhexrt-android
-```
-
-| Coordinate | Role |
-|---|---|
-| `runanywhere-sdk` | Core SDK and the commons native library |
-| `runanywhere-llamacpp` | llama.cpp backend (LLM, VLM) |
-| `runanywhere-onnx` | ONNX Runtime (embeddings) and Sherpa-ONNX (STT, TTS, VAD) in one AAR |
-| `runanywhere-qhexrt-android` | QHexRT backend (Qualcomm Hexagon NPU), arm64 only |
-
-The four move in lockstep; never mix versions across them. To move to a new SDK release,
-bump `runanywhere` in `gradle/libs.versions.toml`, then regenerate the two reproducibility
-files that pin the resolved graph, `app/gradle.lockfile` and
-`gradle/verification-metadata.xml`:
-
-```bash
-# 1. Dependency lock. Host-independent, so any OS will do.
-./gradlew :app:dependencies --write-locks
-
-# 2. Checksums. Gradle merges into the existing file (it adds entries and never
-#    removes them) so run this on top of the committed file rather than deleting it.
-GRADLE_USER_HOME="$(mktemp -d)" ./gradlew --write-verification-metadata sha256 \
-    :app:assembleDebug :app:testDebugUnitTest :app:lintRelease
-```
-
-Two traps make the checksum file easy to get subtly wrong:
-
-- Use a throwaway `GRADLE_USER_HOME`. Checksums are only recorded for artifacts Gradle
-  actually downloads during the run. Against a warm `~/.gradle` the run looks successful
-  but silently omits things already cached, in practice a handful of parent POMs and BOM
-  metadata (`guava-parent`, `junit-bom`, `kotlin-gradle-plugins-bom`). The gap is
-  invisible until someone builds from a genuinely cold cache, i.e. CI.
-- Cover Linux and macOS. A few build-time artifacts are OS-classified
-  (`com.android.tools.build:aapt2:...-linux.jar` vs `...-osx.jar`) and Gradle records only
-  the host's. The committed file carries both, so one file satisfies the Linux CI runner
-  and a macOS developer. Because step 2 merges, the way to keep both is to run it on Linux
-  (Docker is fine), commit that file, then run it again on macOS on top. If you can only
-  reach one OS, hand-add the missing `<artifact>` line to the
-  `com.android.tools.build:aapt2` component. A Linux-only file breaks every macOS
-  developer, and a macOS-only file breaks CI.
-
-Then confirm the result the same way CI will, with no bypass flags:
-
-```bash
-./gradlew :app:assembleDebug          # dependency verification live
-CI=true ./gradlew :app:assembleDebug  # + LockMode.STRICT
-```
-
-### Testing an unreleased SDK build
-
-To try a change from a [`runanywhere-sdks`](https://github.com/RunanywhereAI/runanywhere-sdks)
-checkout before it is on Maven Central, publish it to `~/.m2` and point this repo at it:
-
-```bash
-# In the monorepo. Publishes io.github.sanchitmonga22:*:<core/VERSION>
-(cd path/to/runanywhere-sdks/bindings/kotlin && ./gradlew publishToMavenLocal)
-
-# Here. Opt in per invocation, and relax verification for that one run
-./gradlew :app:assembleDebug \
-    -Prunanywhere.useLocalSdkAars=true \
-    --dependency-verification=lenient
-```
-
-`-Prunanywhere.useLocalSdkAars=true` adds `mavenLocal()` ahead of Google and Maven
-Central, scoped by `content { includeGroup("io.github.sanchitmonga22") }` so a stale
-`~/.m2` copy of any other dependency cannot shadow the verified one.
-
-`--dependency-verification=lenient` is required alongside it, and is not a bypass being
-smuggled in. A locally published AAR has the same coordinates as the released one but
-different bytes, so it can never match the sha256 in
-`gradle/verification-metadata.xml`. Without the flag the build stops with
-`artifacts failed verification`, which is the gate working correctly. Relax it per
-invocation like this; do not add a `<trust group="io.github.sanchitmonga22"/>` entry to
-the committed metadata, because that would permanently un-pin the four artifacts the gate
-exists to pin.
-
-Both flags are per-invocation only. Never commit `runanywhere.useLocalSdkAars` to
-`gradle.properties` and never set it in CI: `ci.yml` exists to prove a clean clone
-resolves the SDK from Maven Central, and a local AAR would make that proof vacuous.
-
-## Continuous integration
-
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
-`ubuntu-latest`, Temurin JDK 17 and 21, the Android SDK via `android-actions/setup-android`
-(`platform-tools`, `platforms;android-37.0`, `build-tools;37.0.0`), Gradle caching via
-`gradle/actions/setup-gradle`, then `./gradlew :app:assembleDebug --no-daemon --stacktrace`
-and an APK upload.
-
-CI runs the unmodified command, no bypass flags, so it exercises the same path a developer
-does. Both reproducibility gates are enforced there and locally:
-
-| Gate | What enforces it | What it pins |
-|---|---|---|
-| `gradle/verification-metadata.xml` | Auto-enabled by Gradle whenever the file exists; `./scripts/verify.sh` additionally passes `--dependency-verification strict` | sha256 of every resolved artifact, including the four `io.github.sanchitmonga22` AARs and both OS variants of `aapt2` |
-| `app/gradle.lockfile` | `app/build.gradle.kts` flips to `LockMode.STRICT` when `$CI` is set (or with `-Prunanywhere.strictLocks=true`); `LENIENT` otherwise, so Android Studio sync stays friction-free | the exact resolved version of every module on every configuration |
-
-If a dependency or SDK bump makes either gate fail, regenerate the files (see
-[SDK dependency](#sdk-dependency)). Do not add `--dependency-verification=off` or
-`env -u CI` to the workflow, because that hides the breakage from CI while every clean
-clone keeps failing.
-
-## What the app does
-
-The navigation drawer has two groups, defined in
-`ui/navigation/Destinations.kt`.
-
-Assistant:
-
-| Screen | What it does |
-|---|---|
-| Ask | Streaming chat, with thinking-mode display, tool calling, and per-response analytics |
-| Talk | Hands-free voice assistant over the VAD to STT to LLM to TTS pipeline |
-| Images & live | Image and live-camera understanding through a VLM |
-| Documents | Document ingestion and retrieval-augmented Q&A with sources |
-
-App:
-
-| Screen | What it does |
-|---|---|
-| Settings | App and assistant preferences, model downloads, storage usage and cache clearing, Hugging Face token |
-| Advanced | Hub for the remaining SDK surfaces |
-
-Advanced (`ui/screens/more/MoreScreen.kt`) links to Document OCR, segmentation,
-diarization, image generation, read-aloud (TTS), transcription (STT), voice activity
-(VAD), web and tools, solutions, cloud providers, and benchmarks.
-
-Model management is a sheet rather than a screen: `ui/screens/models/ModelSelectionSheet.kt`
-handles download, load, and delete, and is reachable from the surfaces that need a model.
-`data/ModelCatalog.kt` seeds the curated catalog, registered in the background after the
-first frame so cold start is not blocked by roughly a hundred `models.register()` JNI
-calls.
-
-Inference runs locally once models are downloaded. Cloud providers are opt-in and
-configured on their own screen.
-
-## NPU and QHexRT (Snapdragon devices)
-
-On supported Qualcomm Hexagon hardware the app registers the QHexRT backend for
-accelerated inference. `RunAnywhereApplication` registers it after
-`RunAnywhere.initialize()`, because the module extracts its DSP skels through the
-SDK-owned application `Context`. Registration is rejected internally on parts outside the
-validated V75/V79/V81 set, and the backend is arm64 only, so it is unavailable on x86_64
-emulators. `ADSP_LIBRARY_PATH` is set by the engine itself; the app supplies no glue.
-
-To use private `runanywhere/*_HNPU` model bundles:
-
-1. Open Settings, then the Private Downloads section.
-2. Paste a Hugging Face token and tap Save token.
-3. Download and load an HNPU model from the model picker. The SDK resolves the correct
-   Hexagon architecture natively.
-4. Tap Clear to return to public, no-auth downloads.
-
-The token is held in protected app storage and re-applied to the SDK on each start. It is
-never embedded in source, assets, or logs.
-
-## Project layout
+Four AARs from Maven Central, no local project paths. Three share one version; QHexRT
+carries its own, because it stopped being published to Maven Central after `0.20.19`.
 
 ```
-app/src/main/java/com/runanywhere/runanywhereai/
-  RunAnywhereApplication.kt   SDK init, backend registration, catalog seeding
-  MainActivity.kt             Compose host
-  ui/navigation/              Type-safe routes and the drawer destinations
-  ui/screens/                 One package per screen
-  ui/theme/                   Material 3 theming, brand orange #FF6900
-  data/                       Model catalog, settings, conversations, RAG, benchmarks
-  tools/                      Built-in tool-calling implementations
-  download/                   Model download service and progress state
-app/build.gradle.kts          Variants, signing, dependency locking, SBOM, Play gate
-gradle/libs.versions.toml     SDK coordinates and every dependency version
-gradle/verification-metadata.xml  sha256 of every resolved artifact
-app/gradle.lockfile           Resolved dependency graph
-scripts/verify.sh             Strict debug APK build gate
-scripts/smoke.sh              Fast static SDK API coverage check
-.github/workflows/ci.yml      Clean-clone build gate
+        RunAnywhere AI (Jetpack Compose, MVVM)
+                        │
+        ┌───────────────┴────────────────┐
+        │   io.github.sanchitmonga22:*   │
+        └───────────────┬────────────────┘
+                        │
+   ┌───────────────┬────┴─────────┬──────────────────┐
+   │               │              │                  │
+runanywhere-sdk  llamacpp       onnx          qhexrt-android
+core + commons   LLM · VLM   embeddings ·      Hexagon NPU
+   0.20.24        0.20.24    STT·TTS·VAD        arm64 only
+                              0.20.24            0.20.19
+                        │
+                        ▼
+              C++ commons, one core
+        shared with Swift, Web, and Electron
 ```
 
-## Troubleshooting
+Business logic lives in the SDK. The app is Compose UI, view models, and thin
+`RunAnywhere.*` calls. The catalog registers in the background after the first frame, so
+cold start is not blocked behind roughly a hundred `models.register()` JNI calls.
 
-| Symptom | Fix |
-|---------|-----|
-| `Could not find io.github.sanchitmonga22:runanywhere-*` | Check the `runanywhere` version in `gradle/libs.versions.toml` is published to Maven Central, and that `mavenCentral()` is reachable |
-| `N artifacts failed verification` | Regenerate `gradle/verification-metadata.xml`, following [SDK dependency](#sdk-dependency) step 2 exactly, including the throwaway `GRADLE_USER_HOME` and the Linux and macOS passes |
-| `... is not part of the dependency lock state` (usually only with `CI=true`) | Regenerate the lock: `./gradlew :app:dependencies --write-locks` |
-| Gradle downloads a JDK on every run | Install a local JDK 21 for the daemon toolchain |
-| `RUNANYWHERE_BASE_URL and RUNANYWHERE_API_KEY must either both be set or both be blank` | Set both, or clear both |
-| NPU models unavailable | Confirm the device has a supported Hexagon NPU and an arm64 build; HNPU bundles also need a saved HF token |
+| Reference | |
+| --- | --- |
+| Building, pinning, tests, CI, troubleshooting | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
+| Contributor conventions | [`AGENTS.md`](AGENTS.md) |
 
-For a quick static check without a full compile:
+## The other apps
 
-```bash
-./scripts/smoke.sh
-```
-
-## Related links
-
-| Resource | Link |
-|----------|------|
-| Kotlin SDK | [runanywhere-sdks/bindings/kotlin](https://github.com/RunanywhereAI/runanywhere-sdks/tree/main/bindings/kotlin) |
-| Maven Central | [io.github.sanchitmonga22](https://central.sonatype.com/namespace/io.github.sanchitmonga22) |
-| Play Store | [com.runanywhere.runanywhereai](https://play.google.com/store/apps/details?id=com.runanywhere.runanywhereai) |
+| Platform | Repo |
+| --- | --- |
+| iOS and macOS, Swift | [runanywhere-ios](https://github.com/RunanywhereAI/runanywhere-ios) |
+| Windows, Electron | [runanywhere-electron](https://github.com/RunanywhereAI/runanywhere-electron) |
+| Web, TypeScript | [runanywhere-web](https://github.com/RunanywhereAI/runanywhere-web) |
+| SDK monorepo | [runanywhere-sdks](https://github.com/RunanywhereAI/runanywhere-sdks) |
+| Documentation | [docs.runanywhere.ai](https://docs.runanywhere.ai) |
 | Discord | [discord.gg/N359FBbDVd](https://discord.gg/N359FBbDVd) |
-| Issues | [GitHub Issues](https://github.com/RunanywhereAI/runanywhere-sdks/issues) |
-| Email | founders@runanywhere.ai |
 
 ## License
 
-RunAnywhere License, Version 1.0: Apache 2.0 based, with additional terms that require a
-separate commercial license for commercial use. See [LICENSE](LICENSE).
+RunAnywhere License, Apache 2.0 based with additional commercial-use terms. See
+[LICENSE](LICENSE).
