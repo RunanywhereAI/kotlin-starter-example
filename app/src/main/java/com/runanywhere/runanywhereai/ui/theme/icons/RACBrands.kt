@@ -32,6 +32,7 @@ object RACBrands {
     val Prism = Brand("Prism", RACIcons.Outline.Model, Color(0xFF2FA98C))
     val Deepgrove = Brand("Deepgrove", RACIcons.Outline.Model, Color(0xFF3F8F4F))
     val OpenAI = Brand("OpenAI", RACIcons.Brands.Whisper, Color(0xFF10A37F))
+    val Zhipu = Brand("Zhipu AI", RACIcons.Outline.Model, Color(0xFF1F6FEB))
     val HuggingFace = Brand("Hugging Face", RACIcons.Brands.HuggingFace, Color(0xFFFFD21E))
     val Apple = Brand("Apple", RACIcons.Brands.Foundation, Color(0xFF00C2A8))
     val OpenSource = Brand("Open source", RACIcons.Outline.Model, Color(0xFF9AA0A6))
