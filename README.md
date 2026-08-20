@@ -33,8 +33,8 @@ hardware the inference runs on the Hexagon NPU.
 
 ## What it looks like
 
-Captured on a physical arm64 device running LFM2 350M, quantised Q4_K_M, through the
-llama.cpp backend.
+Captured on a physical arm64 device, running a small GGUF chat model through the llama.cpp
+backend.
 
 | | |
 |---|---|
@@ -57,8 +57,18 @@ The rest, including the landscape layout, are in [`docs/screenshots/`](docs/scre
 | **Documents** | Add documents and ask questions, with sources cited |
 | **Advanced** | OCR, segmentation, diarization, image generation, read aloud, transcription, voice activity, tools, benchmarks |
 
-Models download from a curated catalog through a sheet you can reach from any screen that
-needs one. Cloud providers exist but are opt-in and off by default.
+Cloud providers exist but are opt-in and off by default.
+
+## Models
+
+The picker groups models by publisher, so you pick a name you recognise and then a size. It
+carries current-generation open models across chat, vision, speech, and embedding, from a
+230M model that answers instantly to larger ones a recent phone can hold. Sizes shown are
+measured, not estimated, and the app checks each one against your device before recommending
+it.
+
+The sheet is reachable from any screen that needs a model, and you can paste any GGUF repo
+from Hugging Face to add it alongside the curated set.
 
 ## Snapdragon NPU
 
