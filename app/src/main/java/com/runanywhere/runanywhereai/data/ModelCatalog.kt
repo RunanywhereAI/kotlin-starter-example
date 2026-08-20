@@ -271,10 +271,11 @@ internal object ModelCatalog {
         SingleFileModel(
             "qwen3.5-0.8b-q4_k_m",
             "Qwen3.5 0.8B Q4_K_M",
-            "https://huggingface.co/bartowski/Qwen_Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf",
+            "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf",
             LLAMA,
             LANGUAGE,
-            620_000_000,
+            memoryBytes = 900_000_000,
+            downloadBytes = 532_517_120,
             supportsThinking = true
         ),
         // Qwen3.6 — MoE (35B total / 3B active), agentic-coding-focused release.
