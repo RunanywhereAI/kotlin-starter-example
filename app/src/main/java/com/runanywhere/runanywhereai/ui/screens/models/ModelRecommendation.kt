@@ -38,12 +38,12 @@ object ModelRecommendation {
     // Curated GGUF LLM ids, ordered best-first (product preference, not device fit).
     private val preferredGgufLLMs: List<String> = listOf(
         "lfm2.5-1.2b-instruct-q4_k_m",
-        "qwen3-1.7b-q4_k_m",
-        "lfm2-1.2b-tool-q4_k_m",
-        "qwen3-0.6b-q4_k_m",
-        "qwen2.5-0.5b-instruct-q6_k",
-        "lfm2-350m-q4_k_m",
+        "qwen3.5-2b-q4_k_m",
+        "lfm2.5-1.2b-thinking-q4_k_m",
         "qwen3.5-0.8b-q4_k_m",
+        "granite-4.1-3b-q4_k_m",
+        "lfm2.5-230m-q4_k_m",
+        "bonsai-1.7b-q1_0",
     )
 
     // HNPU (QHexRT) LLMs surfaced first when the device reports a Hexagon NPU.

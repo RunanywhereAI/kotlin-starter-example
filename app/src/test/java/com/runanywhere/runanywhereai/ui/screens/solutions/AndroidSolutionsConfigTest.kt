@@ -25,7 +25,7 @@ class AndroidSolutionsConfigTest {
                 framework = InferenceFramework.INFERENCE_FRAMEWORK_ONNX,
             ),
             model(
-                id = "smollm2-360m-q8_0",
+                id = "lfm2.5-230m-q4_k_m",
                 category = ModelCategory.MODEL_CATEGORY_LANGUAGE,
                 framework = InferenceFramework.INFERENCE_FRAMEWORK_LLAMA_CPP,
             ),
@@ -169,7 +169,7 @@ class AndroidSolutionsConfigTest {
     )
 
     private val canonicalCpuIds = listOf(
-        "smollm2-360m-q8_0",
+        "lfm2.5-230m-q4_k_m",
         "sherpa-onnx-whisper-tiny.en",
         "vits-piper-en_US-lessac-medium",
         "all-minilm-l6-v2",
