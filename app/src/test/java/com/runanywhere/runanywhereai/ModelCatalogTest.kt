@@ -215,12 +215,22 @@ class ModelCatalogTest {
         // The CPU 230M row and the HNPU 230M bundle are distinct models, not duplicates.
         assertTrue(ModelCatalog.npuCatalog.any { it.id == "lfm2_5_230m" })
 
-        listOf("lfm2-350m-q4_k_m", "lfm2-1.2b-tool-q4_k_m", "lfm2.5-2.6b-q4_k_m").forEach { id ->
-            assertTrue("expected kept Q4_K_M row $id", byId.containsKey(id))
-        }
-        listOf("lfm2-350m-q8_0", "lfm2-1.2b-tool-q8_0", "lfm2.5-2.6b-q8_0").forEach { id ->
-            assertFalse("removed Q8_0 sibling $id came back", byId.containsKey(id))
-        }
+        // One quantization per model, asserted over the whole catalog rather than
+        // named rows so it keeps holding as models turn over.
+        val quant = Regex("-(ud-)?(q\\d[_a-z0-9]*|tq\\d_\\d|iq\\d[_a-z0-9]*)$")
+        // Keyed by category too: a family's text row and its vision row share a
+        // base id on purpose (the vision one carries an mmproj projector).
+        val bases = byId.values
+            .filter { quant.containsMatchIn(it.id) }
+            .map { model ->
+                val category = when (model) {
+                    is SingleFileModel -> model.category
+                    is MultiFileModel -> model.category
+                    else -> null
+                }
+                model.id.replace(quant, "") to category
+            }
+        assertEquals("two quantizations of one model", bases.distinct().size, bases.size)
     }
 
     /**

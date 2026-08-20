@@ -71,7 +71,7 @@ class ModelTaxonomyTest {
             catalogModel("nemotron_nano_8b"),
             catalogModel("nemotron-mini-4b-instruct-q4_k_m"),
             catalogModel("parakeet_ctc_1_1b"),
-            catalogModel("qwen3-4b-q4_k_m"),
+            catalogModel("qwen3.5-4b-q4_k_m"),
         ).toOrgGroups()
 
         assertEquals(listOf(ModelOrg.NVIDIA, ModelOrg.ALIBABA), groups.map { it.org })
@@ -84,7 +84,7 @@ class ModelTaxonomyTest {
     fun orgGroupsOrderByOrgDeclaration() {
         val groups = listOf(
             catalogModel("all-minilm-l6-v2"),
-            catalogModel("qwen3-4b-q4_k_m"),
+            catalogModel("qwen3.5-4b-q4_k_m"),
             catalogModel("nemotron-mini-4b-instruct-q4_k_m"),
             catalogModel("whisper_base"),
         ).toOrgGroups()

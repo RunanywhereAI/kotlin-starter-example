@@ -207,67 +207,6 @@ internal object ModelCatalog {
 
     // --- LLM (llama.cpp) ------------------------------------------------------
     private val llm = listOf(
-        // SmolLM2
-        SingleFileModel(
-            "smollm2-360m-q8_0",
-            "SmolLM2 360M Q8_0",
-            "https://huggingface.co/prithivMLmods/SmolLM2-360M-GGUF/resolve/main/SmolLM2-360M.Q8_0.gguf",
-            LLAMA,
-            LANGUAGE,
-            386_404_416
-        ),
-        // Qwen (2.5, then 3, then 3.5)
-        SingleFileModel(
-            "qwen2.5-0.5b-instruct-q6_k",
-            "Qwen 2.5 0.5B Instruct Q6_K",
-            "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q6_k.gguf",
-            LLAMA,
-            LANGUAGE,
-            // downloadBytes defaults to memoryBytes, so a RAM-shaped round number here is also
-            // published as the transfer total the progress bar divides by. 600_000_000 is 50 MB short
-            // of the real asset (measured twice: 650_379_104 bytes on disk, and the HTTP layer logs
-            // `bytes_written=650379104`), which drove the bar to 100% at 92% of the file and left the
-            // line reading "596.2 MB of 572.2 MB" with the ETA gone while 50 MB was still arriving.
-            memoryBytes = 600_000_000,
-            downloadBytes = 650_379_104,
-            supportsLora = true
-        ),
-        SingleFileModel(
-            "qwen2.5-1.5b-instruct-q4_k_m",
-            "Qwen 2.5 1.5B Instruct Q4_K_M",
-            "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            LLAMA,
-            LANGUAGE,
-            2_500_000_000
-        ),
-        SingleFileModel(
-            "qwen3-0.6b-q4_k_m",
-            "Qwen3 0.6B Q4_K_M",
-            "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            memoryBytes = 500_000_000,
-            downloadBytes = 396_705_472,
-            supportsThinking = true
-        ),
-        SingleFileModel(
-            "qwen3-1.7b-q4_k_m",
-            "Qwen3 1.7B Q4_K_M",
-            "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            1_200_000_000,
-            supportsThinking = true
-        ),
-        SingleFileModel(
-            "qwen3-4b-q4_k_m",
-            "Qwen3 4B Q4_K_M",
-            "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            2_800_000_000,
-            supportsThinking = true
-        ),
         SingleFileModel(
             "qwen3.5-0.8b-q4_k_m",
             "Qwen3.5 0.8B Q4_K_M",
@@ -317,28 +256,6 @@ internal object ModelCatalog {
             // 153,406,304 B of weights plus KV cache and runtime overhead.
             190_000_000
         ),
-        // ONE quantization per model. The Q8_0 sibling of this row was removed
-        // deliberately: two quants of the same 350M model differ only in bytes
-        // (229 MB vs 379 MB), so the second row costs a catalog slot and a
-        // "which one do I pick?" decision without adding a capability. The same
-        // collapse was applied to LFM2 1.2B Tool and LFM2.5 2.6B below.
-        SingleFileModel(
-            "lfm2-350m-q4_k_m",
-            "LiquidAI LFM2 350M Q4_K_M",
-            "https://huggingface.co/LiquidAI/LFM2-350M-GGUF/resolve/main/LFM2-350M-Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            250_000_000
-        ),
-        // Q8_0 sibling removed — one quantization per model (see the 350M note above).
-        SingleFileModel(
-            "lfm2-1.2b-tool-q4_k_m",
-            "LiquidAI LFM2 1.2B Tool Q4_K_M",
-            "https://huggingface.co/LiquidAI/LFM2-1.2B-Tool-GGUF/resolve/main/LFM2-1.2B-Tool-Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            800_000_000
-        ),
         SingleFileModel(
             "lfm2.5-1.2b-instruct-q4_k_m",
             "LiquidAI LFM2.5 1.2B Instruct Q4_K_M",
@@ -356,24 +273,6 @@ internal object ModelCatalog {
             LANGUAGE,
             1_674_000_000,
             supportsThinking = true
-        ),
-        // Llama
-        SingleFileModel(
-            "llama-2-7b-chat-q4_k_m",
-            "Llama 2 7B Chat Q4_K_M",
-            "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            4_000_000_000
-        ),
-        // Mistral
-        SingleFileModel(
-            "mistral-7b-instruct-q4_k_m",
-            "Mistral 7B Instruct Q4_K_M",
-            "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.1-GGUF/resolve/main/mistral-7b-instruct-v0.1.Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            4_000_000_000
         ),
         // Gemma
         // Gemma 4 license: Google's Gemma Terms of Use (https://ai.google.dev/gemma/terms),
@@ -431,14 +330,6 @@ internal object ModelCatalog {
             LANGUAGE,
             18_323_733_440
         ),
-        SingleFileModel(
-            "gemma-4-31b-it-ud-q2_k_xl",
-            "Gemma 4 31B IT UD-Q2_K_XL (heavy)",
-            "https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/gemma-4-31B-it-UD-Q2_K_XL.gguf",
-            LLAMA,
-            LANGUAGE,
-            11_774_991_296
-        ),
         // Granite (IBM)
         // Apache 2.0 (verified via HF cardData.license). Dense, three sizes.
         SingleFileModel(
@@ -472,29 +363,6 @@ internal object ModelCatalog {
         // `nemotron` support; this exact Q4_K_M artifact was load/inference
         // checked through rcli on macOS before being exposed in the catalog.
         SingleFileModel(
-            "nemotron-mini-4b-instruct-q4_k_m",
-            "NVIDIA Nemotron Mini 4B Instruct Q4_K_M",
-            "https://huggingface.co/bartowski/Nemotron-Mini-4B-Instruct-GGUF/resolve/fb49cde090c86092d89905bea2ffc41c23c2615e/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf",
-            LLAMA,
-            LANGUAGE,
-            2_697_387_072,
-            contextLength = 4_096
-        ),
-        // Exact P0 NVIDIA Nano checkpoint. The file itself is 4.92 GB, while
-        // llama.cpp also needs KV/cache/compute headroom. Keep those two facts
-        // separate so the download planner validates the exact transport size
-        // and the mandatory SDK compatibility preflight requires 6 GiB of
-        // currently available RAM before either download or lifecycle load.
-        //
-        // INTENTIONAL CROSS-SDK DIVERGENCE: this row is Android/rcli-only. The
-        // pinned llama.cpp fork's `nemotron` path was load/inference checked for
-        // this exact Q4_K_M artifact through rcli on macOS (not yet an on-device
-        // Android smoke). iOS deliberately withholds it (ModelCatalogBootstrap:
-        // pending an Apple-provider inference smoke) and the Web catalog omits it
-        // (its ~4.92 GB single artifact exceeds the browser WASM32 4 GiB gate).
-        // Hold or re-scope this row if the Android llama.cpp path has to clear the
-        // same on-device bar iOS requires.
-        SingleFileModel(
             "llama-3.1-nemotron-nano-4b-v1.1-q4_k_m",
             "NVIDIA Llama 3.1 Nemotron Nano 4B v1.1 Q4_K_M",
             "https://huggingface.co/bartowski/nvidia_Llama-3.1-Nemotron-Nano-4B-v1.1-GGUF/resolve/4eb0ffaec9b21a411cf4fa39df2fba0b7a972e11/nvidia_Llama-3.1-Nemotron-Nano-4B-v1.1-Q4_K_M.gguf",
@@ -513,6 +381,15 @@ internal object ModelCatalog {
             memoryBytes = 6L * 1_024L * 1_024L * 1_024L,
             downloadBytes = 4_920_736_864L,
             contextLength = 4_096,
+        ),
+        SingleFileModel(
+            "nemotron-mini-4b-instruct-q4_k_m",
+            "NVIDIA Nemotron Mini 4B Instruct Q4_K_M",
+            "https://huggingface.co/bartowski/Nemotron-Mini-4B-Instruct-GGUF/resolve/fb49cde090c86092d89905bea2ffc41c23c2615e/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            2_697_387_072,
+            contextLength = 4_096
         ),
         // Bonsai (PrismML)
         // Bonsai family at TRUE 1-bit (Q1_0, ~1.125 bit/wt) on CPU via llama.cpp — the same GGUF
@@ -564,6 +441,58 @@ internal object ModelCatalog {
         // "invalid ggml type 142" — it only added Q1_0 (plain Bonsai) support, not
         // Ternary-Bonsai's tensor encoding. Re-enable once the fork adds it.
         // Ternary-Bonsai MLX works fine (iOS/macOS only — no MLX on Android).
+
+        // Added from the verified model list.
+        SingleFileModel(
+            "lfm2.5-1.2b-thinking-q4_k_m",
+            "LFM2.5 1.2B Thinking Q4_K_M",
+            "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Thinking-GGUF/resolve/main/LFM2.5-1.2B-Thinking-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            memoryBytes = 900_000_000,
+            downloadBytes = 730_895_360,
+            supportsThinking = true
+        ),
+        SingleFileModel(
+            "qwen3.5-2b-q4_k_m",
+            "Qwen3.5 2B Q4_K_M",
+            "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            memoryBytes = 1_550_000_000,
+            downloadBytes = 1_280_835_840,
+            supportsThinking = true
+        ),
+        SingleFileModel(
+            "qwen3.5-4b-q4_k_m",
+            "Qwen3.5 4B Q4_K_M",
+            "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            memoryBytes = 3_350_000_000,
+            downloadBytes = 2_740_937_888,
+            supportsThinking = true
+        ),
+        SingleFileModel(
+            "qwen3.5-9b-q4_k_m",
+            "Qwen3.5 9B Q4_K_M",
+            "https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/resolve/main/Qwen3.5-9B-Q4_K_M.gguf",
+            LLAMA,
+            LANGUAGE,
+            memoryBytes = 6_950_000_000,
+            downloadBytes = 5_680_522_464,
+            supportsThinking = true
+        ),
+        SingleFileModel(
+            "maple-preview-tq1_0",
+            "Maple Preview 20B-A1B TQ1_0 (1-bit)",
+            "https://huggingface.co/deepgrove/maple-preview-GGUF/resolve/main/maple-preview-TQ1_0-head-Q4_K.gguf",
+            LLAMA,
+            LANGUAGE,
+            memoryBytes = 6_100_000_000,
+            downloadBytes = 4_984_016_416,
+            supportsThinking = true
+        ),
     )
 
     // --- VLM (llama.cpp, multimodal) ------------------------------------------
@@ -604,47 +533,6 @@ internal object ModelCatalog {
             600_000_000,
             TAR_GZ,
             ArchiveStructure.ARCHIVE_STRUCTURE_DIRECTORY_BASED
-        ),
-        // Qwen (2-VL, then 2.5-VL)
-        MultiFileModel(
-            "qwen2-vl-2b-instruct-q4_k_m", "Qwen2-VL 2B Instruct", LLAMA, MULTIMODAL, 1_800_000_000,
-            files = listOf(
-                ModelFile(
-                    "https://huggingface.co/ggml-org/Qwen2-VL-2B-Instruct-GGUF/resolve/main/Qwen2-VL-2B-Instruct-Q4_K_M.gguf",
-                    "Qwen2-VL-2B-Instruct-Q4_K_M.gguf"
-                ),
-                ModelFile(
-                    "https://huggingface.co/ggml-org/Qwen2-VL-2B-Instruct-GGUF/resolve/main/mmproj-Qwen2-VL-2B-Instruct-Q8_0.gguf",
-                    "mmproj-Qwen2-VL-2B-Instruct-Q8_0.gguf"
-                ),
-            ),
-        ),
-        MultiFileModel(
-            "qwen2.5-vl-3b-instruct-q4_k_m", "Qwen2.5-VL 3B Instruct Q4_K_M", LLAMA, MULTIMODAL, 2_800_000_000,
-            files = listOf(
-                ModelFile(
-                    "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
-                    "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf"
-                ),
-                ModelFile(
-                    "https://huggingface.co/ggml-org/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf",
-                    "mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf"
-                ),
-            ),
-        ),
-        // LFM2-VL / LFM2.5-VL (Liquid AI)
-        MultiFileModel(
-            "lfm2-vl-450m-q8_0", "LFM2-VL 450M", LLAMA, MULTIMODAL, 600_000_000,
-            files = listOf(
-                ModelFile(
-                    "https://huggingface.co/runanywhere/LFM2-VL-450M-GGUF/resolve/main/LFM2-VL-450M-Q8_0.gguf",
-                    "LFM2-VL-450M-Q8_0.gguf"
-                ),
-                ModelFile(
-                    "https://huggingface.co/runanywhere/LFM2-VL-450M-GGUF/resolve/main/mmproj-LFM2-VL-450M-Q8_0.gguf",
-                    "mmproj-LFM2-VL-450M-Q8_0.gguf"
-                ),
-            ),
         ),
         // Q4_K_M, matching the Qwen2.5-VL 3B row beside it and the LFM2.5 2.6B LLM
         // row this VLM is built on: one quantization per model, and Q4_K_M is what
