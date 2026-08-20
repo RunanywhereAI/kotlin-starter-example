@@ -294,10 +294,11 @@ internal object ModelCatalog {
         SingleFileModel(
             "qwen3.8-27b-q4_k_m",
             "Qwen3.8 27B Q4_K_M (heavy)",
-            "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-Q4_K_M.gguf",
+            "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/main/Qwen3.8-27B-UD-Q4_K_M.gguf",
             LLAMA,
             LANGUAGE,
-            17_106_775_008,
+            memoryBytes = 17_106_775_008,
+            downloadBytes = 16_464_440_224,
             supportsThinking = true
         ),
         // LFM2 / LFM2.5 (Liquid AI)
@@ -707,9 +708,10 @@ internal object ModelCatalog {
         MultiFileModel(
             "gemma-4-e4b-it-q4_k_m", "Gemma 4 E4B IT Q4_K_M (Experimental)", LLAMA, MULTIMODAL, 5_500_000_000,
             files = listOf(
+                // ggml-org publishes no Q4_K_M for this repo — Q4_0 is its only 4-bit build.
                 ModelFile(
-                    "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
-                    "gemma-4-E4B-it-Q4_K_M.gguf"
+                    "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_0.gguf",
+                    "gemma-4-E4B-it-Q4_0.gguf"
                 ),
                 ModelFile(
                     "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-E4B-it-Q8_0.gguf",
